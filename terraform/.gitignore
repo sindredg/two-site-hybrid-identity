@@ -1,0 +1,17 @@
+# State holds the admin password in plaintext. Never commit it.
+*.tfstate
+*.tfstate.*
+.terraform.tfstate.lock.info
+
+# Provider binaries.
+.terraform/
+
+# Holds your subscription ID and home IP.
+*.tfvars
+*.tfvars.json
+
+crash.log
+crash.*.log
+
+# The lock file SHOULD be committed - it pins provider versions.
+!.terraform.lock.hcl
