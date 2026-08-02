@@ -25,7 +25,7 @@ flowchart TB
     U[Administrator<br/>browser]
 
     subgraph rg[rg-hybridid-swedencentral]
-        BAS[Azure Bastion<br/>Developer SKU]
+        BAS[Azure Bastion<br/>Basic SKU]
         subgraph vnet[vnet-hybridid 10.10.0.0/16]
             subgraph snet[snet-lab 10.10.1.0/24 - NSG]
                 DC[DC01 10.10.1.4<br/>Server 2022 Core<br/>AD DS + DNS]
@@ -113,10 +113,11 @@ never be able to rebuild a domain controller as well. Full reasoning in
 
 ## 4. Status
 
-Phase 0, the Azure infrastructure, is complete and deployed. Phase 1, the AD
-environment, is in progress. Phases 2 onward are blocked on an Entra ID P2 trial:
-the tenant currently has zero subscribed SKUs, and Conditional Access requires P1
-while PIM and access reviews require P2.
+Phase 0, the Azure infrastructure, and Phase 1, the AD environment, are both
+complete: the forest is up, CS01 is domain-joined, and five seed users are enabled
+with routable UPNs ready to sync. Phases 2 onward are blocked on an Entra ID P2
+trial, since the tenant currently has zero subscribed SKUs and Conditional Access
+requires P1 while PIM and access reviews require P2.
 
 See `PLAN.md` for the full sequence and exit criteria.
 

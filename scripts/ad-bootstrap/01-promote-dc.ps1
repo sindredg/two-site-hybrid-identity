@@ -30,14 +30,21 @@ $ErrorActionPreference = 'Stop'
 
 Write-Host "== Preflight ==" -ForegroundColor Cyan
 
-# Promoting a DC that is already a DC is not merely wasteful, it fails in
-# confusing ways. Check first.
-if (Get-Service -Name NTDS -ErrorAction SilentlyContinue) {
-    Write-Host "NTDS service present - this machine is already a domain controller." -ForegroundColor Yellow
+# Promoting a DC that is already a DC fails in confusing ways, so check first.
+#
+# Check DomainRole, not whether the NTDS service exists. Installing the AD DS
+# role registers NTDS in a Stopped/Disabled state long before any promotion
+# happens, so testing for the service reports "already a domain controller" on a
+# plain server and the script exits without doing anything. DomainRole is the
+# fact: 4 = backup DC, 5 = primary DC, anything lower is not a DC at all.
+$role = (Get-CimInstance Win32_ComputerSystem).DomainRole
+if ($role -in 4, 5) {
+    Write-Host "Already a domain controller (DomainRole=$role)." -ForegroundColor Yellow
     Get-ADDomain | Select-Object DNSRoot, NetBIOSName, DomainMode | Format-List
     Write-Host "Nothing to do." -ForegroundColor Green
     return
 }
+Write-Host "DomainRole=$role - not a domain controller yet, continuing."
 
 # A DC must have a static address. Ours is pinned in Terraform to 10.10.1.4, but
 # verify rather than assume - a DC on a changing IP breaks DNS for the whole lab.

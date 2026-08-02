@@ -16,7 +16,7 @@ VMs with their NICs, disks and auto-shutdown schedules. All Terraform, in
 | Delivered | Detail |
 |---|---|
 | No internet-facing surface | Public IPs removed, single inbound NSG rule scoped to `VirtualNetwork` |
-| Bastion access | Developer SKU, free, browser-based |
+| Bastion access | Basic SKU, browser-based, gated behind `enable_bastion` |
 | Static private IPs | DC01 `.4`, CS01 `.5`, CL01 `.6` |
 | Cost control | Daily auto-shutdown, CL01 gated behind `enable_client` |
 
@@ -25,18 +25,18 @@ deployed environment.
 
 ---
 
-## Phase 1. AD environment: In progress
+## Phase 1. AD environment: Completed
 
 **Goal.** A working forest with a directory structure realistic enough that
 scoped synchronisation is a meaningful thing to demonstrate. Walkthrough in
 `docs/01-ad-environment.md`. Forest is `sindredg.local`, NetBIOS `SINDREDG`.
 
-1. Promote DC01 to a new forest and install DNS. `scripts/ad-bootstrap/01-promote-dc.ps1`
+1. Promote DC01 to a new forest and install DNS. `scripts/ad-bootstrap/01-promote-dc.ps1`. **Done**
 2. Point the VNet at the DC: set `dns_servers = ["10.10.1.4"]` in
-   `terraform/terraform.tfvars`, re-apply, then reboot CS01
-3. Join CS01 to the domain
-4. Create OUs, security groups and seed users. `scripts/ad-bootstrap/02-ad-structure.ps1`
-5. Add a routable UPN suffix and pre-flight for sync. `scripts/ad-bootstrap/03-prep-sync.ps1`
+   `terraform/azure/terraform.tfvars`, re-apply, then reboot CS01. **Done**
+3. Join CS01 to the domain. **Done**, reports `MemberServer`
+4. Create OUs, security groups and seed users. `scripts/ad-bootstrap/02-ad-structure.ps1`. **Done**, five users enabled
+5. Add a routable UPN suffix and pre-flight for sync. `scripts/ad-bootstrap/03-prep-sync.ps1`. **Done**, all five UPNs on the onmicrosoft suffix
 
 **Step 2 is the one people skip.** Azure-provided DNS cannot resolve an AD domain,
 so the join fails with a "domain not found" message that reads like a credentials

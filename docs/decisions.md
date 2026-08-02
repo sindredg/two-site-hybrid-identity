@@ -53,14 +53,24 @@ importantly a domain controller with an internet-facing RDP port is the wrong
 thing to publish in a portfolio. The immediate trigger was that `mstsc.exe` does
 not exist on recent Windows 11 Home ARM64 builds, so RDP was not usable anyway.
 
-**Developer SKU over Basic.** Free against $0.19/hour, roughly $139/month billed
-24/7 with no auto-shutdown, which is around ten times the VM bill. Verified
-against the Azure Retail Prices API.
+**Developer SKU over Basic, then reversed.** Developer is free, so it went in
+first. It proved too unreliable to work against: mostly failing to connect, and
+black-screening then dropping when it did. Everything on our side was healthy, and
+the intermittency was the tell, since a config or firewall block fails identically
+every time. The shared pool was the only remaining explanation.
 
-**Given up.** Developer SKU is shared infrastructure and allows one VM connection
-at a time, with no native client and no file transfer. Acceptable: once CS01 is
-domain-joined, RSAT from CS01 is the better way to administer a Server Core DC
-anyway.
+We moved to **Basic**, which is dedicated and needs an `AzureBastionSubnet` at
+`10.10.2.0/26` plus a Standard static public IP.
+
+**The cost reasoning that chose Developer was wrong.** It anchored on $139/month,
+which is the 24/7 figure. Bastion bills hourly at $0.19, and Terraform can create
+and destroy it on demand, so a working session costs pennies. The host is gated
+behind `enable_bastion`; setting it false and applying stops the meter while the
+subnet, which is free, stays put.
+
+**Given up.** A few dollars a month against a free tier that did not work. The
+`AzureBastionSubnet` must never carry the lab NSG, because Bastion needs its own
+rule set and a partial one breaks the service in ways that look like a VM fault.
 
 ---
 

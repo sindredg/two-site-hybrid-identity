@@ -75,6 +75,16 @@ foreach ($u in $users) {
     }
 }
 
+# Re-read before checking anything. The collection above was fetched before
+# Set-ADUser ran, so its UserPrincipalName values are stale: every user we just
+# retargeted would be reported as still on the old suffix, and the script would
+# flag failures it had itself just fixed.
+#
+# The general rule, learned twice in this phase: a script that both changes and
+# verifies has to re-read in between, or it is checking its own assumptions
+# rather than the system.
+$users = Get-ADUser -Filter * -SearchBase $syncBase -Properties UserPrincipalName, Surname, GivenName, proxyAddresses
+
 Write-Host "`n== Sync blockers ==" -ForegroundColor Cyan
 $problems = 0
 

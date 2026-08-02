@@ -18,22 +18,30 @@ Root: `terraform/azure/`. Run from WSL.
 | 4 | Network security group | `azurerm_network_security_group` | No inline rules, see below |
 | 5 | NSG rule | `azurerm_network_security_rule` | RDP 3389 from `VirtualNetwork` only |
 | 6 | NSG association | `azurerm_subnet_network_security_group_association` | Separate resource |
-| 7 | Bastion host | `azurerm_bastion_host` | Developer SKU, free, no subnet or public IP required |
-| 8 | Network interface x2 | `azurerm_network_interface` | Static private IPs, no public IP |
-| 9 | Windows VM x2 | `azurerm_windows_virtual_machine` | Server 2022, Gen2 |
-| 10 | Auto-shutdown x2 | `azurerm_dev_test_global_vm_shutdown_schedule` | Daily, 19:00 W. Europe |
+| 7 | `AzureBastionSubnet` | `azurerm_subnet` | 10.10.2.0/26. Name is mandatory and case-sensitive |
+| 8 | Bastion public IP | `azurerm_public_ip` | Standard, static. Required by the dedicated SKUs |
+| 9 | Bastion host | `azurerm_bastion_host` | Basic SKU, gated behind `enable_bastion` |
+| 10 | Network interface x2 | `azurerm_network_interface` | Static private IPs, no public IP |
+| 11 | Windows VM x2 | `azurerm_windows_virtual_machine` | Server 2022, Gen2 |
+| 12 | Auto-shutdown x2 | `azurerm_dev_test_global_vm_shutdown_schedule` | Daily, 19:00 W. Europe |
 
-Thirteen resources in state. Everything per-VM is driven from the `locals.vms`
-map in `vms.tf`, expanded with `for_each`, so adding a VM is one map entry rather
-than five more resources.
+Fifteen resources in state. Everything per-VM is driven from the `locals.vms` map
+in `vms.tf`, expanded with `for_each`, so adding a VM is one map entry rather than
+five more resources.
+
+Bastion started on the free Developer SKU and moved to Basic after Developer
+proved too unreliable to work against. The subnet sits outside the `enable_bastion`
+toggle because an empty subnet is free, so turning Bastion off does not churn the
+address space. See [decisions](decisions.md) and
+[99-troubleshooting.md](99-troubleshooting.md).
 
 Deliberately not built:
 
 | Item | Why not |
 |---|---|
 | OS disk | An `os_disk` block inside the VM resource, not a resource of its own |
-| Public IPs | Removed once Bastion was in place. Outbound still works via the subnet's default outbound access |
-| `AzureBastionSubnet` | Only the dedicated SKUs need it. Developer SKU takes `virtual_network_id` instead |
+| VM public IPs | Removed once Bastion was in place. Outbound still works via the subnet's default outbound access |
+| NSG on `AzureBastionSubnet` | Bastion needs its own eight-rule set, and a partial one breaks the service in ways that look like a VM fault |
 | Inline `security_rule` blocks | Mixing inline and standalone rules makes them overwrite each other every apply |
 
 ---
@@ -99,8 +107,8 @@ Roughly five to ten minutes.
 terraform output bastion_connect_urls
 ```
 
-Open one in a browser, choose Bastion, enter the credentials. Developer SKU
-supports one VM connection at a time.
+Open one in a browser, choose Bastion, enter the credentials. Basic SKU supports
+concurrent sessions, so DC01 and CS01 can both be open at once.
 
 ---
 
@@ -110,10 +118,16 @@ supports one VM connection at a time.
 |---|---:|---|
 | `Standard_B2ls_v2` x2 | | Stopped daily by auto-shutdown |
 | 127 GB Standard HDD x2 | | Persists while deallocated |
-| Bastion Developer SKU | $0.00 | Free. Basic would be $0.19/hr, about $139/month |
-| Public IPs | $0.00 | None. Removed with the Bastion migration |
+| Bastion Basic SKU | $0.19/hr | Only while `enable_bastion = true` |
+| Bastion public IP | ~$0.005/hr | Standard static, exists with the host |
+| VM public IPs | $0.00 | None. Removed with the Bastion migration |
 
 Bastion pricing verified against the Azure Retail Prices API, Sweden Central, USD.
+
+**Bastion bills hourly, not monthly.** The $139/month figure quoted for Basic
+assumes it runs continuously. Set `enable_bastion = false` and apply when you
+finish a session and the meter stops; a few hours of lab work costs pennies. The
+`AzureBastionSubnet` is unaffected and free.
 
 **Auto-shutdown does not auto-start.** VMs are started manually each session,
 which is the point: it stops a forgotten VM burning credit overnight.

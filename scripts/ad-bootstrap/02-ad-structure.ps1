@@ -122,6 +122,20 @@ foreach ($u in $users) {
         Add-ADGroupMember -Identity $u.Group -Members $sam
         Write-Host "          added to $($u.Group)" -ForegroundColor Green
     }
+
+    # Enabled is checked separately for the same reason as membership, and for a
+    # reason found the hard way: -Enabled is only an argument to New-ADUser, so on
+    # a re-run the create branch never fires and -EnableUsers silently does
+    # nothing to accounts that already exist. An idempotency guard has to cover
+    # every attribute the script claims to manage, not just whether the object
+    # is there.
+    if ($EnableUsers) {
+        $acct = Get-ADUser -Identity $sam -Properties Enabled
+        if (-not $acct.Enabled) {
+            Enable-ADAccount -Identity $sam
+            Write-Host "          enabled" -ForegroundColor Green
+        }
+    }
 }
 
 Write-Host "`n== Summary ==" -ForegroundColor Cyan
