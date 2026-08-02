@@ -101,10 +101,34 @@ CS01 once it is joined. This is the intended lesson, not a limitation.
 
 ---
 
+## 7. Forest is `sindredg.local`, UPN suffix is the tenant's onmicrosoft domain
+
+The forest is `sindredg.local`, NetBIOS `SINDREDG`. The tenant's only verified
+domain is `sindredemitriohotmail.onmicrosoft.com`, so the on-prem domain and the
+UPN suffix are deliberately different.
+
+**Rejected: a single-label domain.** A bare `sindredg` with no suffix is
+unsupported by Microsoft and breaks Entra Connect.
+
+**Rejected: a routable domain such as `sindredg.com`.** It would let the on-prem
+suffix match a verified Entra domain, removing the retargeting step entirely.
+Not available, because no such domain is owned and a DNS TXT record cannot be
+added to prove it.
+
+**Given up.** `.local` cannot be verified in Entra, so users created with a
+`@sindredg.local` UPN would sync as `@sindredemitriohotmail.onmicrosoft.com`
+regardless. `03-prep-sync.ps1` adds the onmicrosoft domain as an alternative UPN
+suffix in the forest and retargets the seed users onto it before sync.
+
+That split is not a workaround to hide. It is precisely the state a real
+`.local`-era environment is in before its first sync, so the lab demonstrates the
+same remediation a migration would need.
+
+---
+
 ## Pending decisions
 
 | Decision | Phase | Notes |
 |---|---|---|
 | Password Hash Sync over Pass-through Authentication | 2 | PHS is simpler and survives an on-prem outage. Record the reasoning when chosen |
 | Sync filtering scope | 2 | The `Sync` and `NoSync` OU split exists so scoping is demonstrable. Syncing everything would work and prove nothing |
-| Domain name | 1 | `lab.local` is not routable and cannot be verified in Entra, which forces an alternative UPN suffix. A routable subdomain would be simpler |

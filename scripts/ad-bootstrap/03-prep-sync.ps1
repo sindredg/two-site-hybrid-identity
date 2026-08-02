@@ -24,7 +24,7 @@ param(
     [Parameter(Mandatory)]
     [string]$UpnSuffix,
 
-    [string]$DomainName = 'lab.local',
+    [string]$DomainName = 'sindredg.local',
 
     # Without this the script only reports. Nothing is changed.
     [switch]$Apply

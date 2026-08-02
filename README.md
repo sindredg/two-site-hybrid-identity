@@ -97,6 +97,7 @@ Deliberately not used:
 | `terraform/entra/` | Entra root: Conditional Access, groups, break-glass. Phase 4 |
 | `scripts/ad-bootstrap/` | Idempotent PowerShell for the directory layer |
 | `docs/00-infrastructure.md` | Phase 0 walkthrough and deployment steps |
+| `docs/01-ad-environment.md` | Phase 1 walkthrough: forest, DNS, domain join, directory |
 | `docs/decisions.md` | Choices made, alternatives rejected, what was given up |
 | `docs/risk-and-limitations.md` | What this does not do safely, and why |
 | `docs/99-troubleshooting.md` | Every failure hit during the build, with error strings |

@@ -11,7 +11,7 @@
     rather than syncing the whole directory.
 
 .EXAMPLE
-    .\02-ad-structure.ps1 -DomainName lab.local
+    .\02-ad-structure.ps1 -DomainName sindredg.local
 
 .NOTES
     Phase 1, step 4. Users are created disabled by default - enable them once you
@@ -19,7 +19,7 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$DomainName = 'lab.local',
+    [string]$DomainName = 'sindredg.local',
 
     # Seed users are created with this password, then required to change it.
     # Prompted rather than defaulted so it never sits in the repo.

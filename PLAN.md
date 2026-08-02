@@ -28,7 +28,8 @@ deployed environment.
 ## Phase 1. AD environment: In progress
 
 **Goal.** A working forest with a directory structure realistic enough that
-scoped synchronisation is a meaningful thing to demonstrate.
+scoped synchronisation is a meaningful thing to demonstrate. Walkthrough in
+`docs/01-ad-environment.md`. Forest is `sindredg.local`, NetBIOS `SINDREDG`.
 
 1. Promote DC01 to a new forest and install DNS. `scripts/ad-bootstrap/01-promote-dc.ps1`
 2. Point the VNet at the DC: set `dns_servers = ["10.10.1.4"]` in

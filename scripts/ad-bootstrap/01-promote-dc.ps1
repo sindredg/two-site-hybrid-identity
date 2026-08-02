@@ -12,7 +12,7 @@
     without changing anything.
 
 .EXAMPLE
-    .\01-promote-dc.ps1 -DomainName lab.local
+    .\01-promote-dc.ps1 -DomainName sindredg.local
 
 .NOTES
     Phase 1, step 1. After the reboot, set dns_servers = ["10.10.1.4"] in
@@ -21,9 +21,9 @@
 [CmdletBinding()]
 param(
     # Use a domain you control if you can. See the note at the foot of this file.
-    [string]$DomainName = 'lab.local',
+    [string]$DomainName = 'sindredg.local',
 
-    [string]$NetbiosName = 'LAB'
+    [string]$NetbiosName = 'SINDREDG'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -74,7 +74,7 @@ Install-ADDSForest `
 <#
 A note on the domain name.
 
-lab.local is fine for a throwaway forest, but .local is not routable and cannot be
+sindredg.local is fine for a throwaway forest, but .local is not routable and cannot be
 verified in Entra. Users synced from it land on the tenant's onmicrosoft.com suffix
 unless you add a routable UPN suffix in AD - which is exactly what 03-prep-sync.ps1
 does.

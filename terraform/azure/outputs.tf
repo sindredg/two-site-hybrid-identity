@@ -9,8 +9,16 @@ output "private_ips" {
 }
 
 output "bastion_connect_urls" {
-  description = "Open one of these in a browser, then choose Bastion and enter the admin credentials. One VM at a time on the Developer SKU."
-  value       = { for name, vm in azurerm_windows_virtual_machine.vm : name => "https://portal.azure.com/#@/resource${vm.id}/connect" }
+  description = "Open one in a browser, then choose Bastion and enter the admin credentials. Empty when enable_bastion is false."
+  value = var.enable_bastion ? {
+    for name, vm in azurerm_windows_virtual_machine.vm :
+    name => "https://portal.azure.com/#@${data.azurerm_client_config.current.tenant_id}/resource${vm.id}/connect"
+  } : {}
+}
+
+output "bastion_status" {
+  description = "Whether the paid Bastion host currently exists. Basic SKU bills hourly while it does."
+  value       = var.enable_bastion ? "Basic SKU deployed, billing at 0.19 USD/hour. Set enable_bastion = false and re-apply when done." : "Not deployed. Set enable_bastion = true and re-apply to connect."
 }
 
 output "effective_dns_servers" {

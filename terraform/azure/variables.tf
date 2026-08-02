@@ -42,6 +42,12 @@ variable "admin_password" {
   }
 }
 
+variable "enable_bastion" {
+  description = "Create the Bastion host and its public IP. Basic SKU bills hourly at 0.19 USD, so set this false and re-apply when you finish a session rather than leaving it running. The AzureBastionSubnet is unaffected and costs nothing."
+  type        = bool
+  default     = true
+}
+
 variable "enable_client" {
   description = "Create CL01. Leave false until you are ready to test hybrid Entra join, so you only pay for two VMs."
   type        = bool

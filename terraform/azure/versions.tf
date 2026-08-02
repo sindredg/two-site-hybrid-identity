@@ -13,6 +13,11 @@ terraform {
   }
 }
 
+# Supplies the tenant ID for the portal deep links in outputs.tf. Without it the
+# URLs render as portal.azure.com/#@/resource/... with an empty tenant segment,
+# which can misroute the session.
+data "azurerm_client_config" "current" {}
+
 provider "azurerm" {
   subscription_id = var.subscription_id
 
