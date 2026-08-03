@@ -16,11 +16,6 @@ crash.*.log
 # The lock file SHOULD be committed - it pins provider versions.
 !.terraform.lock.hcl
 
-# Personal command reference. Kept out of the public repo deliberately: it is a
-# working scratchpad rather than portfolio content, and it accumulates
-# environment-specific detail. OneDrive syncs this folder, so excluding it from
-# git does not put it at risk.
-cheatsheets/
 
 # Screenshots whose contents still need redacting before they can be published.
 docs/images/_redact-before-use/

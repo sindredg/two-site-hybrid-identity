@@ -13,7 +13,7 @@ being a single-operator prototype. Recorded rather than pretended away.
 | No versioning | A bad write is unrecoverable beyond `terraform.tfstate.backup` | Storage account with blob versioning and soft delete |
 | Single copy | Losing the machine orphans every billed Azure resource with no way to `destroy` them | Remote state, or at minimum an off-machine copy |
 | File mode `0644` | World-readable on a multi-user system | `chmod 600` as the minimum |
-| **Two state files now** | Phase 3 added `terraform/branch/`. Every issue above applies twice, to two files that must both survive | Same fix, applied to both roots |
+| **Two state files now** | Phase 3 added `terraform/azure-denmarkeast/branch/`. Every issue above applies twice, to two files that must both survive | Same fix, applied to both roots |
 
 The local backend is documented as suitable for solo prototypes only, which this
 is. The gap is real regardless, and splitting the lab into two roots doubled the
@@ -81,7 +81,7 @@ in the terminal is the only review this code gets.
 platform only. A clone on another OS fails `init` with a checksum error rather
 than a missing-package error, which reads as a different problem.
 
-**Both roots have this**, since `terraform/branch/` generated its own lock file the
+**Both roots have this**, since `terraform/azure-denmarkeast/branch/` generated its own lock file the
 same way. Run it in each:
 
 ```bash

@@ -9,7 +9,7 @@ locals {
 # the peering. Outbound internet comes from the subnet's default outbound access,
 # which is what Windows Update and the hybrid join need.
 module "client" {
-  source   = "../modules/windows-vm"
+  source   = "../../modules/windows-vm"
   for_each = local.active_clients
 
   name                = each.key

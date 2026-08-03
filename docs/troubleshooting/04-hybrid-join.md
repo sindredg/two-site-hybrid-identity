@@ -42,7 +42,7 @@ Get-ChildItem "C:\Program Files" -Recurse -Filter ADSync.psd1 -ErrorAction Silen
 
 **Worth knowing.** This recurs on every new Bastion session, so it is part of the
 normal path rather than a one-off fix. It is in
-`cheatsheets/entra-sync.md` for that reason.
+[entra-sync.md](../../cmd-sheets/entra-sync.md) for that reason.
 
 ---
 

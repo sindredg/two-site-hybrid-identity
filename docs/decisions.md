@@ -29,6 +29,11 @@ making the scripts idempotent, so re-running is the drift check.
 
 ## 2. One Terraform root, under `terraform/azure/`
 
+> **Superseded by entry 13.** There are two roots now. The reasoning below is why
+> there was briefly only one, and the principle in its closing line is what entry 13
+> then applied. Kept rather than deleted, because the reversal is the interesting
+> part.
+
 The layout originally had two roots, `terraform/azure/` and `terraform/entra/`,
 kept separate on blast-radius grounds: a bad Conditional Access apply can lock
 every administrator out of a tenant, and that plan should never be able to rebuild
@@ -294,7 +299,7 @@ instead, which is a cost control that depends on remembering.
 
 **Decision.** `terraform/azure-denmarkeast/` is its own root with its own state, not a folder
 inside the HQ root. The VM resources are extracted into
-`terraform/azure-denmarkeast/modules/windows-vm/`, consumed by the branch only.
+`terraform/modules/windows-vm/`, consumed by the branch only.
 
 **Why separate state.** Ownership, change cadence and recovery boundaries all
 differ. The branch is meant to grow into unrelated work later, and a mistake there

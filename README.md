@@ -130,19 +130,23 @@ Deliberately not used:
 | Path | Contents |
 |---|---|
 | `terraform/azure/` | HQ root: network, DC01, CS01, Bastion |
-| `terraform/branch/` | Branch root: its own resource group, network, both peering objects, the clients |
+| `terraform/azure-denmarkeast/branch/` | Branch root: its own resource group, network, both peering objects, the clients |
 | `terraform/modules/windows-vm/` | One VM plus the NIC, disk and shutdown schedule that travel with it |
 | `scripts/ad-bootstrap/` | Idempotent PowerShell for the directory layer |
+| `cmd-sheets/` | Every command the lab uses, grouped by tool and task |
 | `docs/troubleshooting/` | Failures hit during the build, one file per phase, with verbatim error strings |
 | `docs/decisions.md` | Choices made, alternatives rejected, what was given up |
 | `docs/risk-and-limitations.md` | What this does not do safely, and why |
 | `docs/images/phaseN/` | Evidence per phase |
 | `PLAN.md` | Phased roadmap and current status |
 
-The phase documents are narratives of the path that worked, and
+Three ways to read the same build. The phase documents are narratives of the path
+that worked. [`cmd-sheets/`](cmd-sheets/README.md) is the copy-pasteable version,
+grouped by tool rather than by chronology. And
 [`docs/troubleshooting/`](docs/troubleshooting/README.md) is everything that went
-wrong. Keeping them apart means each can be read for its own purpose rather than
-one document trying to be both.
+wrong, with the error strings verbatim so they are searchable. Keeping them apart
+means each can be read for its own purpose rather than one document trying to be
+all three.
 
 Phase walkthroughs, with status:
 

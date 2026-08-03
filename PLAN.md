@@ -93,7 +93,7 @@ Delivered:
 | Item | Detail |
 |---|---|
 | Second region | Denmark East, chosen because it had both spare quota and the same VM size as HQ |
-| Second state | `terraform/branch/`, own resource group `rg-branch-office` |
+| Second state | `terraform/azure-denmarkeast/branch/`, own resource group `rg-branch-office` |
 | Global VNet peering | Both directions, owned by the branch root |
 | Shared module | `terraform/modules/windows-vm/`, encoding earlier failures as plan-time validations |
 | One Bastion for both sites | Basic SKU reaches peered networks, so no second host |

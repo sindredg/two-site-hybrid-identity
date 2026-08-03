@@ -4,8 +4,8 @@
 group and Terraform state, peered back to the domain controller in Sweden Central.
 
 > Infrastructure in `terraform/azure-denmarkeast`, sharing a module with the HQ root.
-> Commands used in this phase: `cheatsheets/terraform.md` and
-> `cheatsheets/azure-cli.md`.
+> Commands used in this phase: [terraform.md](../cmd-sheets/terraform.md) and
+> [azure-cli.md](../cmd-sheets/azure-cli.md).
 
 **Why this matters.** The clients would not fit inside the Sweden Central vCPU
 quota, and a free trial cannot raise it. Moving them to a second region turned a
@@ -63,7 +63,7 @@ machines mattered more than the alternative, which was changing the size and
 accepting that the two sites no longer match.
 
 To check a region before committing to it, see
-`cheatsheets/azure-cli.md`.
+[azure-cli.md](../cmd-sheets/azure-cli.md).
 
 ---
 
@@ -124,7 +124,7 @@ already exists, so there is no window where the clients need Azure DNS.
 |---|---|
 | `terraform/azure/` | HQ. Network, DC01, CS01, Bastion, `AzureBastionSubnet` |
 | `terraform/azure-denmarkeast/` | Branch. Own resource group, network, NSG, both peering objects, the clients |
-| `terraform/azure-denmarkeast/modules/windows-vm/` | One VM plus the NIC, OS disk and shutdown schedule that travel with it |
+| `terraform/modules/windows-vm/` | One VM plus the NIC, OS disk and shutdown schedule that travel with it |
 
 **Separate state, not just a separate folder.** The branch is meant to grow into
 unrelated work later, so it's not sharing a plan with the domain controller.
@@ -171,7 +171,7 @@ here is wrong and should stop the apply.
 Then the branch:
 
 ```bash
-cd terraform/branch
+cd terraform/azure-denmarkeast/branch
 ```
 
 ```bash
@@ -189,7 +189,7 @@ terraform apply
 
 > **Deallocate the clients when finished.** Denmark East does not publish
 > `Microsoft.DevTestLab`, so there is no auto-shutdown schedule here. Stopping from
-> inside Windows still bills. See `cheatsheets/azure-cli.md`.
+> inside Windows still bills. See [azure-cli.md](../cmd-sheets/azure-cli.md).
 
 ---
 
@@ -274,7 +274,7 @@ what that phase is about.
 
 | Criterion | Command | Status |
 |---|---|---|
-| Branch network deployed | `terraform apply` in `terraform/branch` | Done |
+| Branch network deployed | `terraform apply` in `terraform/azure-denmarkeast/branch` | Done |
 | HQ orphan NICs removed | Plan shows 2 to destroy, 0 to add | Done |
 | Peering connected both ways | `az network vnet peering list` reads `Connected` | Done |
 | Clients addressed correctly | `ipconfig` shows 10.20.1.4 and 10.20.1.5 | Done |

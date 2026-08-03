@@ -8,9 +8,13 @@ attached to. The caller supplies a subnet and an address.
 
 ## Usage
 
+The module sits at `terraform/modules/`, one level above the roots that call it, so
+the source path depends on how deeply the caller is nested. From
+`terraform/azure-denmarkeast/branch/` that is `../../modules/windows-vm`.
+
 ```hcl
 module "clients" {
-  source   = "../modules/windows-vm"
+  source   = "../../modules/windows-vm"
   for_each = local.active_clients
 
   name                = each.key

@@ -5,8 +5,8 @@ clients to the domain, and register them with Entra ID so they hold an identity 
 Active Directory and a registration in the cloud at the same time.
 
 > Configured through PowerShell and the Entra Connect wizard on CS01. Commands used
-> in this phase: `cheatsheets/ad-sites.md`, `cheatsheets/ad-join.md`
-> and `cheatsheets/entra-sync.md`.
+> in this phase: [ad-sites.md](../cmd-sheets/ad-sites.md), [ad-join.md](../cmd-sheets/ad-join.md)
+> and [entra-sync.md](../cmd-sheets/entra-sync.md).
 
 **Why this matters.** A hybrid-joined device is what makes the final phase work:
 policy arrives from on-premises Group Policy while the secret that policy manages
