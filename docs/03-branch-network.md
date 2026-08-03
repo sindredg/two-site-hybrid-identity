@@ -3,7 +3,7 @@
 **Goal:** put the client machines in a second Azure region, in their own resource
 group and Terraform state, peered back to the domain controller in Sweden Central.
 
-> Infrastructure in `terraform/branch/`, sharing a module with the HQ root.
+> Infrastructure in `terraform/azure-denmarkeast`, sharing a module with the HQ root.
 > Commands used in this phase: `cheatsheets/terraform.md` and
 > `cheatsheets/azure-cli.md`.
 
@@ -123,11 +123,11 @@ already exists, so there is no window where the clients need Azure DNS.
 | Root | Contents |
 |---|---|
 | `terraform/azure/` | HQ. Network, DC01, CS01, Bastion, `AzureBastionSubnet` |
-| `terraform/branch/` | Branch. Own resource group, network, NSG, both peering objects, the clients |
-| `terraform/modules/windows-vm/` | One VM plus the NIC, OS disk and shutdown schedule that travel with it |
+| `terraform/azure-denmarkeast/` | Branch. Own resource group, network, NSG, both peering objects, the clients |
+| `terraform/azure-denmarkeast/modules/windows-vm/` | One VM plus the NIC, OS disk and shutdown schedule that travel with it |
 
 **Separate state, not just a separate folder.** The branch is meant to grow into
-unrelated work later, so it should never share a plan with the domain controller.
+unrelated work later, so it's not sharing a plan with the domain controller.
 
 **The branch root owns both peering objects** and reads the HQ network through a
 data source. The dependency runs one way: the branch knows about HQ, HQ knows

@@ -292,9 +292,9 @@ instead, which is a cost control that depends on remembering.
 
 ## 13. Separate Terraform state for the branch, and a shared VM module
 
-**Decision.** `terraform/branch/` is its own root with its own state, not a folder
+**Decision.** `terraform/azure-denmarkeast/` is its own root with its own state, not a folder
 inside the HQ root. The VM resources are extracted into
-`terraform/modules/windows-vm/`, consumed by the branch only.
+`terraform/azure-denmarkeast/modules/windows-vm/`, consumed by the branch only.
 
 **Why separate state.** Ownership, change cadence and recovery boundaries all
 differ. The branch is meant to grow into unrelated work later, and a mistake there
