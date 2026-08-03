@@ -1,12 +1,20 @@
-# Hybrid Identity and Windows Endpoint Hardening
+# Hybrid Identity, Two-Site Networking and Endpoint Hardening
 
-An Active Directory forest in Azure, synchronised to Microsoft Entra ID, with
-hybrid-joined endpoints managed and hardened through Group Policy, Microsoft
-security baselines and Windows LAPS.
+An Active Directory forest in Azure, synchronised to Microsoft Entra ID, serving a
+branch office in a second region over virtual network peering, with hybrid-joined
+endpoints managed and hardened through Group Policy, Microsoft security baselines
+and Windows LAPS.
 
 Two halves that meet at the end. The first connects an on-premises-style forest to
 the cloud. The second manages the machines inside it. They join in the final phase,
 where a Group Policy delivered on-premises stores its secret in Entra ID.
+
+**The second site was not in the original design.** The clients would not fit inside
+the first region's vCPU quota and a free trial cannot raise it. Splitting them into
+a peered branch office turned a dead end into the layer the lab was missing: two
+sites, cross-region DNS and Kerberos, and a reason for AD Sites and Services to
+exist. Constraints producing better architecture than the plan did is worth
+recording rather than tidying away.
 
 Reproducible by design. The Azure footprint is Terraform, the directory is
 idempotent PowerShell, and the endpoint configuration is Group Policy backed up to
@@ -26,21 +34,29 @@ per-phase walkthroughs, decisions log, risk register and troubleshooting log.
 
 ## 1. Architecture
 
-A single VNet with no internet-facing surface. Access is via Azure Bastion, and the
-only inbound NSG rule permits RDP from inside the VNet.
+Two sites in two regions, joined by global virtual network peering. Neither has an
+internet-facing surface. Access is via Azure Bastion, and the only inbound NSG rule
+in each site permits RDP from inside the virtual network.
 
 ```mermaid
 flowchart TB
     U[Administrator<br/>browser]
 
-    subgraph rg[rg-hybridid-swedencentral]
+    subgraph hq[rg-hybridid-swedencentral - Sweden Central]
         BAS[Azure Bastion<br/>Basic SKU]
-        subgraph vnet[vnet-hybridid 10.10.0.0/16]
-            subgraph snet[snet-lab 10.10.1.0/24 - NSG]
+        subgraph vnet1[vnet-hybridid 10.10.0.0/16]
+            subgraph snet1[snet-lab 10.10.1.0/24 - NSG]
                 DC[DC01 10.10.1.4<br/>Server 2022 Core<br/>AD DS - DNS - schema]
                 MG[CS01 10.10.1.5<br/>Entra Connect Sync<br/>GPMC - RSAT - baselines]
-                C1[CL01 10.10.1.6<br/>hardened endpoint<br/>LAPS to AD]
-                C2[CL02 10.10.1.7<br/>control endpoint<br/>LAPS to Entra ID]
+            end
+        end
+    end
+
+    subgraph br[rg-branch-office - Denmark East]
+        subgraph vnet2[vnet-branch 10.20.0.0/16]
+            subgraph snet2[snet-branch 10.20.1.0/24 - NSG]
+                C1[CL01 10.20.1.4<br/>hardened endpoint<br/>LAPS to AD]
+                C2[CL02 10.20.1.5<br/>control endpoint<br/>LAPS to Entra ID]
             end
         end
     end
@@ -50,30 +66,41 @@ flowchart TB
     U -- HTTPS 443 --> BAS
     BAS -- RDP 3389 private --> DC
     BAS -- RDP 3389 private --> MG
-    BAS -- RDP 3389 private --> C1
-    BAS -- RDP 3389 private --> C2
-    DC -- DNS - Group Policy --> C1
-    DC -- DNS - Group Policy --> C2
+    BAS -- RDP over peering --> C1
+    BAS -- RDP over peering --> C2
+    vnet1 <-- global VNet peering --> vnet2
+    DC -- DNS - Kerberos - Group Policy --> C1
+    DC -- DNS - Kerberos - Group Policy --> C2
     MG -- password hash sync --> ENT
     C1 -- hybrid join --> ENT
     C2 -- hybrid join - LAPS backup --> ENT
 ```
 
-No VM holds a public IP. Outbound internet comes from the subnet's default outbound
-access rather than an attached address.
+No VM holds a public IP. Outbound internet comes from each subnet's default
+outbound access rather than an attached address.
 
-| VM | Image | Private IP | Role |
-|---|---|---|---|
-| DC01 | Server 2022 Core | 10.10.1.4 | Domain controller, DNS, schema master |
-| CS01 | Server 2022 Desktop | 10.10.1.5 | Entra Connect Sync, GPMC, RSAT, Security Compliance Toolkit |
-| CL01 | Server 2022 Desktop | 10.10.1.6 | Hybrid-joined endpoint. Security baseline applied, LAPS to AD |
-| CL02 | Server 2022 Desktop | 10.10.1.7 | Hybrid-joined endpoint. Baseline control, LAPS to Entra ID |
+| VM | Site | Image | Private IP | Role |
+|---|---|---|---|---|
+| DC01 | HQ | Server 2022 Core | 10.10.1.4 | Domain controller, DNS, schema master |
+| CS01 | HQ | Server 2022 Desktop | 10.10.1.5 | Entra Connect Sync, GPMC, RSAT, Security Compliance Toolkit |
+| CL01 | Branch | Server 2022 Desktop | 10.20.1.4 | Hybrid-joined endpoint. Security baseline applied, LAPS to AD |
+| CL02 | Branch | Server 2022 Desktop | 10.20.1.5 | Hybrid-joined endpoint. Baseline control, LAPS to Entra ID |
 
-All `Standard_B2ls_v2`, 2 vCPU and 4 GB, with static private IPs and daily
-auto-shutdown. Clients are gated behind `enable_client`.
+All `Standard_B2ls_v2`, 2 vCPU and 4 GB, with static private IPs. Keeping the branch
+machines on the same size as HQ is what constrained the region choice: the free
+trial offers that size in only three regions, and the first one was full.
 
 Two clients exist so Phase 5 can compare a hardened machine against an untouched
 one, and Phase 6 can demonstrate both LAPS storage backends side by side.
+
+**One Bastion serves both sites.** The Basic SKU reaches VMs in peered networks, so
+the host in Sweden Central connects to the branch clients without a second
+deployment. Only the Developer SKU lacks that, which is the difference between one
+hourly charge and two.
+
+**Auto-shutdown covers HQ only.** It is a `Microsoft.DevTestLab` resource and that
+provider is not published in the branch region, so the clients have to be
+deallocated by hand. See [decisions.md](docs/decisions.md).
 
 ---
 
@@ -102,7 +129,9 @@ Deliberately not used:
 
 | Path | Contents |
 |---|---|
-| `terraform/azure/` | Infrastructure root: network, VMs, Bastion |
+| `terraform/azure/` | HQ root: network, DC01, CS01, Bastion |
+| `terraform/branch/` | Branch root: its own resource group, network, both peering objects, the clients |
+| `terraform/modules/windows-vm/` | One VM plus the NIC, disk and shutdown schedule that travel with it |
 | `scripts/ad-bootstrap/` | Idempotent PowerShell for the directory layer |
 | `docs/decisions.md` | Choices made, alternatives rejected, what was given up |
 | `docs/risk-and-limitations.md` | What this does not do safely, and why |
@@ -117,7 +146,7 @@ Phase walkthroughs, with status:
 | [00-infrastructure.md](docs/00-infrastructure.md) | Azure footprint: network, VMs, Bastion | **Completed** |
 | [01-ad-environment.md](docs/01-ad-environment.md) | Forest, DNS, domain join, directory | **Completed** |
 | [02-entra-connect.md](docs/02-entra-connect.md) | Entra Connect Sync, scoped to one OU | **Completed** |
-| [03-hybrid-join.md](docs/03-hybrid-join.md) | Hybrid Entra join on both clients | Ready to start |
+| [03-hybrid-join.md](docs/03-hybrid-join.md) | Branch office, cross-site networking, hybrid Entra join | **In progress** |
 | [04-group-policy.md](docs/04-group-policy.md) | Central Store, linked GPOs, backed up to XML | Pending |
 | [05-security-baselines.md](docs/05-security-baselines.md) | Microsoft baselines, hardened against control | Pending |
 | [06-windows-laps.md](docs/06-windows-laps.md) | LAPS to Active Directory and to Entra ID | Pending |
@@ -132,16 +161,18 @@ format is worth keeping.
 
 ## 4. Status
 
-Phases 0 and 1 are complete and deployed: the Azure footprint is up, the forest
-runs, a member server is domain-joined, and five seed users exist in a scoped OU
-structure with routable UPNs.
+Phases 0 to 2 are complete and deployed: the Azure footprint is up, the forest runs,
+a member server is domain-joined, five seed users exist in a scoped OU structure
+with routable UPNs, and all five synchronise into Entra ID with the `NoSync` OU
+correctly absent.
 
-Phase 2, Entra Connect Sync, is ready to start and needs no licence. Phases 3 to 7
-are documented ahead of execution and marked pending. See [PLAN.md](PLAN.md).
+Phase 3 is in progress. The branch office half is built and verified: both networks
+are peered, the clients hold their intended addresses, and DC01 answers across the
+peering at around 16 ms from the second region. The hybrid join half and AD Sites
+and Services are still to come.
 
-One change is staged in Terraform and not yet applied: `CL02` is added alongside
-`CL01`, both still gated behind `enable_client`. It takes effect on the next
-`terraform apply`.
+Phases 4 to 7 are documented ahead of execution and marked pending. See
+[PLAN.md](PLAN.md).
 
 ---
 
@@ -165,13 +196,32 @@ read -rsp 'VM admin password: ' TF_VAR_admin_password && export TF_VAR_admin_pas
 terraform init && terraform apply
 ```
 
-Connect with `terraform output bastion_connect_urls`. Tear down with
-`terraform destroy`.
+Then the branch, which has its own state and its own `terraform.tfvars`. Copy it
+from the example and set the same subscription and password:
 
-**Start DC01 first, every session.** Once the VNet points at 10.10.1.4 for DNS,
-starting another VM while DC01 is deallocated leaves it with no name resolution at
+```bash
+cd ../branch && cp terraform.tfvars.example terraform.tfvars && terraform init && terraform apply
+```
+
+Apply HQ first. The branch reads the HQ network through a data source and creates
+both peering objects, so it needs that network to exist.
+
+Connect with `terraform output bastion_connect_urls` from either root. Tear down
+with `terraform destroy`, branch first.
+
+**Start DC01 first, every session.** Both networks point at 10.10.1.4 for DNS, so
+starting any other VM while DC01 is deallocated leaves it with no name resolution at
 all, including for the internet.
 
+**Deallocate the branch clients when you finish.** They have no auto-shutdown
+schedule, because the region does not publish `Microsoft.DevTestLab`. Stopping from
+inside Windows still bills:
+
+```bash
+az vm deallocate --ids $(az vm list -g rg-branch-office --query "[].id" -o tsv)
+```
+
 **Bastion bills hourly.** Set `enable_bastion = false` and apply when you finish a
-session. **State holds the admin password in plaintext**, so `terraform.tfstate` and
-`terraform.tfvars` are gitignored and must stay that way.
+session. **Both state files hold the admin password in plaintext**, so
+`terraform.tfstate` and `terraform.tfvars` are gitignored in every root and must stay
+that way.

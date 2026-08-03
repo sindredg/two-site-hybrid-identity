@@ -10,6 +10,10 @@ Microsoft Entra ID. Phases 4 to 7 manage and harden the endpoints inside it. Pha
 6 is where they join: Group Policy delivering a LAPS policy whose secret lands in
 the cloud.
 
+Phase 3 also carries a networking layer that was not in the original plan. The
+endpoints live in a second region, peered back to the domain controller, because
+that was the only way to fit them inside a free trial's quota.
+
 > **Everything here is free.** Entra Connect Sync, hybrid Entra join and Windows
 > LAPS all work on Entra ID Free. The lab stops deliberately before Conditional
 > Access (P1) and PIM (P2), which are unobtainable for this tenant. That boundary
@@ -27,8 +31,11 @@ VMs with their NICs, disks and auto-shutdown schedules. All Terraform, in
 |---|---|
 | No internet-facing surface | Public IPs removed, single inbound NSG rule scoped to `VirtualNetwork` |
 | Bastion access | Basic SKU, gated behind `enable_bastion` |
-| Static private IPs | DC01 `.4`, CS01 `.5`, clients from `.6` |
-| Cost control | Daily auto-shutdown, clients gated behind `enable_client` |
+| Static private IPs | DC01 `10.10.1.4`, CS01 `10.10.1.5` |
+| Cost control | Daily auto-shutdown, Bastion gated behind `enable_bastion` |
+
+The clients were originally planned for this subnet on `.6` and `.7`. They did not
+fit the region's vCPU quota and now live in a peered branch office; see Phase 3.
 
 **Exit criteria met.** `terraform plan -detailed-exitcode` returns 0.
 
@@ -69,22 +76,46 @@ UPN suffix on all of them, nothing from `OU=NoSync` present, zero sync errors.
 
 ---
 
-## Phase 3. Hybrid Entra join: Pending
+## Phase 3. Branch office and hybrid Entra join: In progress
 
-**Goal.** Devices that are joined to both directories, which is the precondition
-for the cloud half of Phase 6.
+**Goal.** A second site in a second region, peered back to the domain controller,
+with clients joined to both directories. The second half is the precondition for the
+cloud half of Phase 6.
 
-1. Set `enable_client = true`, apply, restart the clients so they take DC01 as DNS
-2. Domain join CL01 and CL02, move their computer objects into `OU=Workstations`
-3. Ensure `OU=Workstations` is in the Connect Sync scope, so computer objects sync
-4. Run the hybrid join configuration wizard in Entra Connect
-5. Verify with `dsregcmd /status`
+Walkthrough: [docs/03-hybrid-join.md](docs/03-hybrid-join.md).
+
+**The branch office was forced, then kept.** The clients would not fit inside the
+Sweden Central vCPU quota, which a free trial cannot raise. Rather than shrink the
+lab, they moved to their own region, resource group and Terraform state. That turned
+a dead end into cross-region peering, DNS and Kerberos over that peering, and a
+genuine reason for AD Sites and Services.
+
+Done:
+
+1. Clients removed from the HQ root, orphaned NICs cleaned up
+2. `terraform/branch/` built: own resource group, VNet `10.20.0.0/16`, NSG, both
+   peering objects, clients on `10.20.1.4` and `10.20.1.5`
+3. `terraform/modules/windows-vm/` extracted, encoding the lab's earlier failures as
+   plan-time validations
+4. Peering verified: DC01 answers from the branch at roughly 16 ms
+
+Remaining:
+
+5. Domain join CL01 and CL02, move their computer objects into `OU=Workstations`
+6. Confirm computer objects reach Entra, since hybrid join depends on it
+7. Run the hybrid join configuration wizard in Entra Connect
+8. Verify with `dsregcmd /status`
+9. Define both sites and subnets in AD Sites and Services
 
 **No licence required.** Hybrid join is free. Only the Conditional Access that
 would normally sit on top of it needs P1.
 
+**Cost note.** The branch region does not publish `Microsoft.DevTestLab`, so those
+two clients have no auto-shutdown schedule and must be deallocated by hand.
+
 **Exit criteria.** `AzureAdJoined: YES` and `DomainJoined: YES` on both clients,
-and both listed as Microsoft Entra hybrid joined in the portal.
+both listed as Microsoft Entra hybrid joined in the portal, and both subnets bound
+to named sites.
 
 ---
 
@@ -199,9 +230,11 @@ useful signal than a lab that quietly assumes an E5 tenant.
 
 ## Notes
 
-**Cost control.** Auto-shutdown stops the VMs daily and does not restart them.
-Bastion is gated behind `enable_bastion` and bills hourly while it exists.
-`terraform destroy` removes everything.
+**Cost control.** Auto-shutdown stops the HQ VMs daily and does not restart them.
+The branch clients have no schedule, because that region does not publish the
+resource type, so they need `az vm deallocate` by hand. Bastion is gated behind
+`enable_bastion` and bills hourly while it exists. `terraform destroy` removes
+everything, branch root first.
 
 **Evidence.** Each phase should leave something a reader can check: a synced user
 in Entra, `dsregcmd /status`, `gpresult` output, a Policy Analyzer comparison, a
