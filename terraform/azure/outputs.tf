@@ -4,7 +4,7 @@ output "resource_group_name" {
 }
 
 output "private_ips" {
-  description = "Private IP per VM. All static: DC01 .4, CS01 .5, CL01 .6, CL02 .7. There are no public IPs - access is via Bastion."
+  description = "Private IP per VM in the HQ site. Both static: DC01 .4, CS01 .5. There are no public IPs - access is via Bastion. The clients are in terraform/branch."
   value       = { for name, nic in azurerm_network_interface.vm : name => nic.private_ip_address }
 }
 

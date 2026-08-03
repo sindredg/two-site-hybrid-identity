@@ -1,6 +1,9 @@
 locals {
-  # One entry per VM. Everything below is driven off this map, so adding a
-  # fourth box is a single block rather than five more resources.
+  # One entry per VM. Everything below is driven off this map, so adding another
+  # box is a single block rather than five more resources.
+  #
+  # This root holds the HQ site only: the domain controller and the connect
+  # server. The clients live in terraform/branch, peered to this VNet.
   #
   # Every VM gets a static private_ip on purpose. Azure assigns dynamic
   # addresses starting at the lowest free one, which is 10.10.1.4 - the same
@@ -35,23 +38,10 @@ locals {
       create     = true
     }
 
-    # Two clients, not one. Phase 5 applies a security baseline to CL01 and leaves
-    # CL02 untouched as a control, so Policy Analyzer has something to compare
-    # against. Phase 6 then points each at a different LAPS backend: CL01 to
-    # Active Directory, CL02 to Entra ID.
-    CL01 = {
-      size       = "Standard_B2ls_v2" # 2 vCPU, 4 GB
-      image_sku  = "2022-datacenter-g2"
-      private_ip = "10.10.1.6"
-      create     = var.enable_client
-    }
-
-    CL02 = {
-      size       = "Standard_B2ls_v2"
-      image_sku  = "2022-datacenter-g2"
-      private_ip = "10.10.1.7"
-      create     = var.enable_client
-    }
+    # CL01 and CL02 used to sit here on .6 and .7. They now live in
+    # terraform/branch, in a second region and a second resource group, because
+    # Sweden Central had no vCPU quota left for them and a free trial cannot ask
+    # for more. See docs/decisions.md.
   }
 
   active_vms = { for name, cfg in local.vms : name => cfg if cfg.create }

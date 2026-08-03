@@ -15,7 +15,7 @@ variable "location" {
 }
 
 variable "resource_group_name" {
-  description = "Name of the single resource group holding the lab."
+  description = "Name of the resource group holding the HQ site. The branch site has its own, in terraform/branch."
   type        = string
   default     = "rg-hybridid-swedencentral"
 }
@@ -48,12 +48,6 @@ variable "enable_bastion" {
   default     = true
 }
 
-variable "enable_client" {
-  description = "Create CL01 and CL02, the managed endpoints that hybrid join, Group Policy, security baselines and LAPS target. Two of them so one can be hardened and the other kept as a control. Leave false while working on the directory alone, so you only pay for two VMs."
-  type        = bool
-  default     = false
-}
-
 variable "dns_servers" {
   description = "VNet DNS servers. Empty means Azure-provided DNS. Set to [\"10.10.1.4\"] after you promote DC01, otherwise the member server and clients cannot resolve the domain and will fail to join."
   type        = list(string)
@@ -63,7 +57,7 @@ variable "dns_servers" {
 variable "auto_shutdown_time" {
   description = "Daily auto-shutdown time in 24-hour HHMM form."
   type        = string
-  default     = "1900"
+  default     = "0100"
 
   validation {
     condition     = can(regex("^([01][0-9]|2[0-3])[0-5][0-9]$", var.auto_shutdown_time))

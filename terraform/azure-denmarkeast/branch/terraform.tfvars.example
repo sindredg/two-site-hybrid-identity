@@ -1,0 +1,27 @@
+# Copy to terraform.tfvars and fill in. terraform.tfvars is gitignored.
+# The admin password is deliberately absent: supply it through the environment so
+# it never lands in a file.
+#
+#   read -rsp 'VM admin password: ' TF_VAR_admin_password && export TF_VAR_admin_password && echo
+
+subscription_id = "00000000-0000-0000-0000-000000000000"
+
+# VERIFY BEFORE THE FIRST APPLY. A free trial restricts which sizes it may use
+# per region as well as capping total cores, so a region can be reachable and
+# still refuse client_size:
+#
+#   az vm list-usage --location <region> -o table
+#   az vm list-skus -l <region> --resource-type virtualMachines --size Standard_B2ls -o table
+#
+# location = "germanywestcentral"
+# client_size = "Standard_B2ls_v2"
+
+# Set false to keep the network and peering while paying for no VMs.
+# enable_client = true
+
+# Adding a third endpoint is an entry here, not a code change.
+# clients = {
+#   CL01 = { host_index = 4 }
+#   CL02 = { host_index = 5 }
+#   CL03 = { host_index = 6, image_sku = "2025-datacenter-g2" }
+# }
