@@ -133,11 +133,16 @@ Deliberately not used:
 | `terraform/branch/` | Branch root: its own resource group, network, both peering objects, the clients |
 | `terraform/modules/windows-vm/` | One VM plus the NIC, disk and shutdown schedule that travel with it |
 | `scripts/ad-bootstrap/` | Idempotent PowerShell for the directory layer |
+| `docs/troubleshooting/` | Failures hit during the build, one file per phase, with verbatim error strings |
 | `docs/decisions.md` | Choices made, alternatives rejected, what was given up |
 | `docs/risk-and-limitations.md` | What this does not do safely, and why |
-| `docs/99-troubleshooting.md` | Every failure hit during the build, with error strings |
 | `docs/images/phaseN/` | Evidence per phase |
 | `PLAN.md` | Phased roadmap and current status |
+
+The phase documents are narratives of the path that worked, and
+[`docs/troubleshooting/`](docs/troubleshooting/README.md) is everything that went
+wrong. Keeping them apart means each can be read for its own purpose rather than
+one document trying to be both.
 
 Phase walkthroughs, with status:
 
@@ -146,11 +151,12 @@ Phase walkthroughs, with status:
 | [00-infrastructure.md](docs/00-infrastructure.md) | Azure footprint: network, VMs, Bastion | **Completed** |
 | [01-ad-environment.md](docs/01-ad-environment.md) | Forest, DNS, domain join, directory | **Completed** |
 | [02-entra-connect.md](docs/02-entra-connect.md) | Entra Connect Sync, scoped to one OU | **Completed** |
-| [03-hybrid-join.md](docs/03-hybrid-join.md) | Branch office, cross-site networking, hybrid Entra join | **In progress** |
-| [04-group-policy.md](docs/04-group-policy.md) | Central Store, linked GPOs, backed up to XML | Pending |
-| [05-security-baselines.md](docs/05-security-baselines.md) | Microsoft baselines, hardened against control | Pending |
-| [06-windows-laps.md](docs/06-windows-laps.md) | LAPS to Active Directory and to Entra ID | Pending |
-| [07-tiered-administration.md](docs/07-tiered-administration.md) | Tier 0/1/2 with enforced logon boundaries | Stretch |
+| [03-branch-network.md](docs/03-branch-network.md) | Second region, peered branch office | **Completed** |
+| [04-hybrid-join.md](docs/04-hybrid-join.md) | AD sites, domain join, hybrid Entra join | **Completed** |
+| [05-group-policy.md](docs/05-group-policy.md) | Central Store, linked GPOs, backed up to XML | Pending |
+| [06-security-baselines.md](docs/06-security-baselines.md) | Microsoft baselines, hardened against control | Pending |
+| [07-windows-laps.md](docs/07-windows-laps.md) | LAPS to Active Directory and to Entra ID | Pending |
+| [08-tiered-administration.md](docs/08-tiered-administration.md) | Tier 0/1/2 with enforced logon boundaries | Stretch |
 
 Pending docs are written from documented behaviour and marked as such at the top.
 They get rewritten as records, with screenshots, as each phase is actually run.
@@ -161,17 +167,17 @@ format is worth keeping.
 
 ## 4. Status
 
-Phases 0 to 2 are complete and deployed: the Azure footprint is up, the forest runs,
-a member server is domain-joined, five seed users exist in a scoped OU structure
-with routable UPNs, and all five synchronise into Entra ID with the `NoSync` OU
-correctly absent.
+**Phases 0 to 4 are complete and deployed.** The Azure footprint is up across two
+regions, the forest runs, five seed users synchronise into Entra ID with the
+`NoSync` OU correctly absent, and both branch clients are Microsoft Entra hybrid
+joined: an identity in Active Directory and a registration in the cloud at the same
+time.
 
-Phase 3 is in progress. The branch office half is built and verified: both networks
-are peered, the clients hold their intended addresses, and DC01 answers across the
-peering at around 16 ms from the second region. The hybrid join half and AD Sites
-and Services are still to come.
+The directory knows it spans two sites. `nltest` from a branch client reports
+`Our Site Name: Branch-DenmarkEast` against `Dc Site Name: HQ-SwedenCentral`, and
+the domain controller answers across the peering at roughly 16 ms.
 
-Phases 4 to 7 are documented ahead of execution and marked pending. See
+Phases 5 to 8 are documented ahead of execution and marked pending. See
 [PLAN.md](PLAN.md).
 
 ---

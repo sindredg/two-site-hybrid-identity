@@ -1,4 +1,4 @@
-# Phase 6. Windows LAPS, both backends
+# Phase 7. Windows LAPS, both backends
 
 > **Status: Pending.** Not yet executed. Written from documented behaviour, to be
 > rewritten as a record with screenshots once run.
@@ -10,9 +10,9 @@ storage backends side by side.
 > and [Windows LAPS in Microsoft Entra ID](https://learn.microsoft.com/entra/identity/devices/howto-manage-local-admin-passwords).
 
 **Why this matters.** This is where the two halves of the lab meet. The policy is
-delivered by on-premises Group Policy, built in Phase 4. One client stores its
+delivered by on-premises Group Policy, built in Phase 5. One client stores its
 secret in Active Directory, the other in Entra ID, which is only possible because
-both were hybrid-joined in Phase 3.
+both were hybrid-joined in Phase 4.
 
 It also closes the shared-credential entry in
 [risk-and-limitations.md](risk-and-limitations.md), which has been open since
@@ -88,7 +88,7 @@ that right is the real security decision here, not whether to turn the feature o
 ## 5. Policy
 
 The Windows LAPS ADMX templates are **not** copied into the Central Store
-automatically. Phase 4 created the store; this phase depends on the templates being
+automatically. Phase 5 created the store; this phase depends on the templates being
 in it.
 
 Two GPOs differing only in `BackupDirectory`, security-filtered to one client each:
@@ -153,5 +153,5 @@ the configuration where that works.
 
 ## Next
 
-[Phase 7](07-tiered-administration.md), marked stretch. The lab already tells a
+[Phase 8](08-tiered-administration.md), marked stretch. The lab already tells a
 complete story without it.

@@ -57,7 +57,7 @@ variable "dns_servers" {
 variable "auto_shutdown_time" {
   description = "Daily auto-shutdown time in 24-hour HHMM form."
   type        = string
-  default     = "0100"
+  default     = "2330"
 
   validation {
     condition     = can(regex("^([01][0-9]|2[0-3])[0-5][0-9]$", var.auto_shutdown_time))

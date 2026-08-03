@@ -87,7 +87,7 @@ address. CS01 and CL01 were originally dynamic.
 
 **Changed because** Azure allocates dynamic addresses from the lowest free one,
 which is `10.10.1.4`, and Terraform creates NICs in parallel. A dynamic NIC won
-the race and took the DC's address. See `99-troubleshooting.md`.
+the race and took the DC's address. See `troubleshooting/00-infrastructure.md`.
 
 **Given up.** Nothing meaningful. Predictable addressing is a feature in a lab
 this size.
@@ -120,7 +120,7 @@ CS01 once it is joined. This is the intended lesson, not a limitation.
 ## 7. Forest is `sindredg.local`, UPN suffix is the tenant's onmicrosoft domain
 
 The forest is `sindredg.local`, NetBIOS `SINDREDG`. The tenant's only verified
-domain is `sindredemitriohotmail.onmicrosoft.com`, so the on-prem domain and the
+domain is `<tenant>.onmicrosoft.com`, so the on-prem domain and the
 UPN suffix are deliberately different.
 
 **Rejected: a single-label domain.** A bare `sindredg` with no suffix is
@@ -132,7 +132,7 @@ Not available, because no such domain is owned and a DNS TXT record cannot be
 added to prove it.
 
 **Given up.** `.local` cannot be verified in Entra, so users created with a
-`@sindredg.local` UPN would sync as `@sindredemitriohotmail.onmicrosoft.com`
+`@sindredg.local` UPN would sync as `@<tenant>.onmicrosoft.com`
 regardless. `03-prep-sync.ps1` adds the onmicrosoft domain as an alternative UPN
 suffix in the forest and retargets the seed users onto it before sync.
 
@@ -224,9 +224,9 @@ rather than assumed.
 
 ## 11. Four machines, and CS01 keeps its name
 
-**Two clients, not one.** Phase 5 applies a security baseline to CL01 and leaves
+**Two clients, not one.** Phase 6 applies a security baseline to CL01 and leaves
 CL02 untouched as a control, so Policy Analyzer has something to compare against.
-Phase 6 then points each at a different LAPS backend, one to Active Directory and
+Phase 7 then points each at a different LAPS backend, one to Active Directory and
 one to Entra ID, demonstrating both storage modes in one environment. A second
 client is the cheapest way to turn an assertion into a comparison.
 
@@ -248,8 +248,78 @@ and weigh a better name against the cost of invalidating your own evidence.
 is the habit that makes a tiered administration model meaningless before it starts.
 
 **Given up.** A fourth VM's standing disk cost, and a fifth that would have been a
-dedicated privileged-access workstation for Phase 7. CS01 plays the Tier 1 box
+dedicated privileged-access workstation for Phase 8. CS01 plays the Tier 1 box
 instead.
+
+---
+
+## 12. Splitting the lab across two regions
+
+**Decision.** Move CL01 and CL02 out of Sweden Central into a second region, a
+second resource group, and a second Terraform state, joined by global virtual
+network peering.
+
+**Forced, then kept.** Sweden Central is capped at 4 vCPU on a free trial, on two
+separate counters, and DC01 and CS01 consume all of it. A support request is the
+normal answer and is not available on a free trial. The immediate options were to
+run one client instead of two, or to move them.
+
+Moving them was chosen because it adds rather than removes. The lab gains two
+sites, cross-region DNS and Kerberos, and a genuine reason for AD Sites and
+Services, which a single flat subnet never needed. The constraint produced a better
+architecture than the original plan had.
+
+**Rejected: requesting a quota increase.** Not available on a free trial. Recorded
+because it is the first thing a reader will think of.
+
+**Rejected: one client instead of two.** Phase 6 needs a hardened machine beside an
+untouched control, and Phase 7 needs two LAPS backends demonstrated side by side.
+Dropping to one client would have cost both.
+
+**Rejected: changing the VM size to fit another region.** `Standard_B2ls_v2` is
+offered to this subscription in only three regions. Keeping the branch machines
+identical to the HQ machines was worth more than a wider region choice, because a
+size difference between sites would be an artefact of the trial rather than a
+design decision.
+
+**Given up.** The Phase 0 story of a single virtual network with no internet-facing
+surface. There are now two peered networks, which is more moving parts and a small
+continuous data transfer charge. Also auto-shutdown on the branch clients, since
+Denmark East does not publish `Microsoft.DevTestLab`; they are deallocated by hand
+instead, which is a cost control that depends on remembering.
+
+---
+
+## 13. Separate Terraform state for the branch, and a shared VM module
+
+**Decision.** `terraform/branch/` is its own root with its own state, not a folder
+inside the HQ root. The VM resources are extracted into
+`terraform/modules/windows-vm/`, consumed by the branch only.
+
+**Why separate state.** Ownership, change cadence and recovery boundaries all
+differ. The branch is meant to grow into unrelated work later, and a mistake there
+should never be able to produce a plan that touches a promoted domain controller.
+
+**The branch root owns both peering objects** and reads the HQ network through a
+data source rather than remote state. The dependency runs one way: the branch knows
+about HQ, HQ knows nothing about the branch, so the HQ root needed no changes at
+all.
+
+**Given up.** A clean state boundary. The branch root creates one resource, the
+HQ-to-branch peering, inside the HQ resource group. Recorded rather than pretended
+away; the alternative was making HQ depend on the branch existing, which is worse.
+
+**Why a module for two callers, and why only one uses it.** The VM block is
+genuinely reused, which meets the usual threshold. HQ was deliberately left on its
+own inline copy: migrating it would need `moved` blocks pointing at DC01, and a
+mistake there rebuilds the domain controller and costs Phases 1 and 2. The cost of
+that choice is that the two can drift, so a fix in the module needs checking against
+HQ by hand.
+
+The module earns its place by encoding failures as validations rather than
+comments. The 15-character computer name limit, the Arm64 sizes that will not boot
+an x64 image, and the duplicate address that caused the Phase 0 apply failure are
+all now plan-time errors.
 
 ---
 
@@ -257,10 +327,10 @@ instead.
 
 | Decision | Phase | Notes |
 |---|---|---|
-| Whether computer objects sync | 3 | Hybrid join needs them. They are already inside `OU=Sync`, but the Connect Sync scope has to include them explicitly and excluding them fails in a way that is hard to diagnose |
-| GPO naming and linking convention | 4 | OU linking is simpler to reason about; security-group filtering scales better and is harder to audit |
-| How far to take the security baseline | 5 | Applying Microsoft's baseline wholesale will break something. The exceptions and their reasons belong here as they are decided |
-| Which LAPS backend for which client | 6 | Currently CL01 to Active Directory, CL02 to Entra ID. Worth confirming once both are hybrid-joined, since a device can use one or the other but not both |
-| Who can decrypt LAPS passwords | 6 | The forest supports encryption. Which group holds decryption rights is the actual security decision, not whether to enable it |
-| Whether Phase 7 happens at all | 7 | Marked stretch. Phases 2 to 6 already tell a complete story |
+| GPO naming and linking convention | 5 | OU linking is simpler to reason about; security-group filtering scales better and is harder to audit |
+| How far to take the security baseline | 6 | Applying Microsoft's baseline wholesale will break something. The exceptions and their reasons belong here as they are decided |
+| Which LAPS backend for which client | 7 | Currently CL01 to Active Directory, CL02 to Entra ID. A device can use one or the other but not both |
+| Who can decrypt LAPS passwords | 7 | The forest supports encryption. Which group holds decryption rights is the actual security decision, not whether to enable it |
+| Whether to fold HQ into the shared VM module | 5 | Needs `moved` blocks against a promoted domain controller. Worth doing only on its own, with nothing else in the plan |
+| Whether Phase 8 happens at all | 8 | Marked stretch. Phases 2 to 7 already tell a complete story |
 

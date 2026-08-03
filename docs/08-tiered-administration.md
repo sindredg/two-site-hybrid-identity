@@ -1,4 +1,4 @@
-# Phase 7. Tiered administration
+# Phase 8. Tiered administration
 
 > **Status: Pending, stretch.** Not yet executed, and the phase to drop if the lab
 > has gone on long enough. Phases 2 to 6 already tell a complete story.
@@ -6,7 +6,7 @@
 **Goal:** stop using one Domain Admin account for everything, which is the second
 weakness named in [risk-and-limitations.md](risk-and-limitations.md).
 
-**Why this matters.** Phase 6 removes the shared *local* administrator password.
+**Why this matters.** Phase 7 removes the shared *local* administrator password.
 This removes the shared *domain* one. Together they close the flat-credential
 pattern the risk register has carried since Phase 0.
 
@@ -84,6 +84,6 @@ exists. A screenshot of a successful logon proves nothing about what is blocked.
 ## Where the lab ends
 
 After this, the natural next step is Conditional Access requiring a hybrid-joined
-device for administrative access, which would tie Phase 3 and Phase 7 into a single
+device for administrative access, which would tie Phase 4 and Phase 8 into a single
 control. It needs Entra ID P1, which is unobtainable for this tenant, so the lab
 stops here deliberately rather than pretending past the boundary.

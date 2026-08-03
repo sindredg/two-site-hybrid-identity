@@ -11,11 +11,13 @@ being a single-operator prototype. Recorded rather than pretended away.
 |---|---|---|
 | Local backend | No locking. Two concurrent applies would corrupt state | `azurerm` backend with blob lease locking |
 | No versioning | A bad write is unrecoverable beyond `terraform.tfstate.backup` | Storage account with blob versioning and soft delete |
-| Single copy | Losing the machine orphans 13 billed Azure resources with no way to `destroy` them | Remote state, or at minimum an off-machine copy |
+| Single copy | Losing the machine orphans every billed Azure resource with no way to `destroy` them | Remote state, or at minimum an off-machine copy |
 | File mode `0644` | World-readable on a multi-user system | `chmod 600` as the minimum |
+| **Two state files now** | Phase 3 added `terraform/branch/`. Every issue above applies twice, to two files that must both survive | Same fix, applied to both roots |
 
 The local backend is documented as suitable for solo prototypes only, which this
-is. The gap is real regardless.
+is. The gap is real regardless, and splitting the lab into two roots doubled the
+surface without changing the nature of it.
 
 ---
 
@@ -34,8 +36,17 @@ Two consequences:
   `azurerm_windows_virtual_machine` as `-/+ must be replaced`, stop
 
 `terraform.tfstate` and `terraform.tfvars` are covered by the repository
-`.gitignore`. Verify with `git check-ignore -v` before any first commit to a new
-clone.
+`.gitignore` in every root. Verify with `git check-ignore -v` before any first
+commit to a new clone.
+
+**The same password is now in two state files**, since the branch machines join the
+same domain and need the same local administrator credential. Either file leaking
+is equivalent to both.
+
+**Checked, and not fixable in the provider.** azurerm 4.81 offers no write-only
+variant of `admin_password`, confirmed against the provider schema. Terraform 1.11
+introduced write-only arguments precisely for this, but the resource does not
+implement one, so this cannot be solved in the configuration.
 
 ---
 
@@ -46,9 +57,9 @@ Domain Admin password after promotion. Convenient for a lab, and
 exactly the flat-credential pattern that endpoint hardening exists to argue
 against.
 
-**No longer out of scope.** Phase 5 deploys Windows LAPS, which gives every
+**No longer out of scope.** Phase 6 deploys Windows LAPS, which gives every
 machine its own rotating local administrator password stored encrypted in Active
-Directory. Phase 6 splits the single Domain Admin account into a tiered model.
+Directory. Phase 7 splits the single Domain Admin account into a tiered model.
 This entry stays open until both are done, and closing it is the point of those
 phases rather than a side effect.
 
@@ -69,6 +80,9 @@ in the terminal is the only review this code gets.
 `.terraform.lock.hcl` was generated on `linux_arm64` and records hashes for that
 platform only. A clone on another OS fails `init` with a checksum error rather
 than a missing-package error, which reads as a different problem.
+
+**Both roots have this**, since `terraform/branch/` generated its own lock file the
+same way. Run it in each:
 
 ```bash
 terraform providers lock -platform=linux_arm64 -platform=linux_amd64 -platform=windows_amd64
@@ -139,7 +153,7 @@ accident.
 **Why this is an open risk rather than a closed task.** A manual 30-day rotation
 with no expiry warning and no enforcement is the kind of thing that lapses
 silently. Seamless SSO was enabled for demonstration value and because it gives
-Phase 4 a real Group Policy task, not because this lab needs it. If the rotation
+Phase 5 a real Group Policy task, not because this lab needs it. If the rotation
 is not going to happen, the honest options are to accept the risk explicitly or to
 disable the feature.
 
@@ -158,8 +172,8 @@ Enable-ADOptionalFeature 'Recycle Bin Feature' -Scope ForestOrConfigurationSet -
 **It is irreversible**, which is why it is off by default and why it is worth a
 moment's thought rather than a reflex. For a lab where every object was created by
 a script and could be recreated by re-running it, the case is weaker than in
-production. The case *for* enabling it is that Phase 6 extends the schema and
-Phase 7 restructures OUs, and an accidental deletion during either would otherwise
+production. The case *for* enabling it is that Phase 7 extends the schema and
+Phase 8 restructures OUs, and an accidental deletion during either would otherwise
 be unrecoverable.
 
-Carried into Phase 4.
+Carried into Phase 5.

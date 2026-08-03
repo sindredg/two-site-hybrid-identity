@@ -1,4 +1,4 @@
-# Phase 4. Group Policy foundation
+# Phase 5. Group Policy foundation
 
 > **Status: Pending.** Not yet executed. Written from documented behaviour, to be
 > rewritten as a record with screenshots once run.
@@ -9,8 +9,8 @@ version controlled rather than clicked.
 > Managed from CS01 using GPMC and RSAT, not from the domain controller.
 
 **Why this matters.** Every later phase is delivered by Group Policy. The security
-baselines in Phase 5 arrive as GPOs, the LAPS policy in Phase 6 arrives as a GPO,
-and the logon restrictions in Phase 7 are User Rights Assignment inside a GPO. A
+baselines in Phase 6 arrive as GPOs, the LAPS policy in Phase 7 arrives as a GPO,
+and the logon restrictions in Phase 8 are User Rights Assignment inside a GPO. A
 badly structured estate makes all three harder to reason about.
 
 ---
@@ -26,7 +26,7 @@ Copy-Item C:\Windows\PolicyDefinitions\* \\sindredg.local\SYSVOL\sindredg.local\
 ```
 
 Windows LAPS templates are **not** installed into the Central Store automatically.
-Phase 6 depends on them being there.
+Phase 7 depends on them being there.
 
 ---
 
@@ -38,8 +38,8 @@ Policy is linked to the OU structure built in Phase 1.
 |---|---|---|
 | `Workstation-Baseline` | `OU=Workstations,OU=Sync` | Computer |
 | `User-Standard` | `OU=Users,OU=Sync` | User |
-| `LAPS-AD` | `OU=Workstations,OU=Sync`, filtered to CL01 | Computer, Phase 6 |
-| `LAPS-EntraID` | `OU=Workstations,OU=Sync`, filtered to CL02 | Computer, Phase 6 |
+| `LAPS-AD` | `OU=Workstations,OU=Sync`, filtered to CL01 | Computer, Phase 7 |
+| `LAPS-EntraID` | `OU=Workstations,OU=Sync`, filtered to CL02 | Computer, Phase 7 |
 
 Two clients in one OU with different LAPS policies is what forces the security
 filtering decision recorded in `decisions.md`.
@@ -103,5 +103,5 @@ layer gets to `terraform plan`.
 
 ## Next
 
-[Phase 5](05-security-baselines.md) imports Microsoft's baselines as GPOs and
+[Phase 6](06-security-baselines.md) imports Microsoft's baselines as GPOs and
 measures what they change.

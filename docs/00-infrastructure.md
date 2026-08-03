@@ -33,7 +33,7 @@ Bastion started on the free Developer SKU and moved to Basic after Developer
 proved too unreliable to work against. The subnet sits outside the `enable_bastion`
 toggle because an empty subnet is free, so turning Bastion off does not churn the
 address space. See [decisions](decisions.md) and
-[99-troubleshooting.md](99-troubleshooting.md).
+[troubleshooting/00-infrastructure.md](troubleshooting/00-infrastructure.md).
 
 Deliberately not built:
 
@@ -144,4 +144,4 @@ pass.
 and `terraform output bastion_connect_urls` gives a working session on both VMs.
 
 Next: `01-ad-environment.md`. Problems and fixes from this phase are in
-`99-troubleshooting.md`; known gaps are in `risk-and-limitations.md`.
+`troubleshooting/`; known gaps are in `risk-and-limitations.md`.

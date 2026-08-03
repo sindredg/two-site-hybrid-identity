@@ -21,7 +21,7 @@ credential pattern hybrid identity work exists to argue against; see
 [risk-and-limitations.md](risk-and-limitations.md).
 
 **Status: complete.** Problems hit along the way, including two bugs in our own
-scripts, are in [99-troubleshooting.md](99-troubleshooting.md).
+scripts, are in [troubleshooting/01-ad-environment.md](troubleshooting/01-ad-environment.md).
 
 ---
 
@@ -224,7 +224,7 @@ the troubleshooting log.
 ## 6. Preparing the directory for sync
 
 The forest is `sindredg.local`. The tenant's only verified domain is
-`sindredemitriohotmail.onmicrosoft.com`. Because `.local` cannot be verified in
+`<tenant>.onmicrosoft.com`. Because `.local` cannot be verified in
 Entra, users created with a `@sindredg.local` UPN would sync under the tenant
 default anyway. Fixing it on-premises first is exactly the remediation a real
 `.local` migration performs.
@@ -232,7 +232,7 @@ default anyway. Fixing it on-premises first is exactly the remediation a real
 The pre-flight runs in report-only mode. Nothing changes without `-Apply`.
 
 ```powershell
-.\03-prep-sync.ps1 -UpnSuffix sindredemitriohotmail.onmicrosoft.com -DomainName sindredg.local
+.\03-prep-sync.ps1 -UpnSuffix <tenant>.onmicrosoft.com -DomainName sindredg.local
 ```
 
 ![Pre-flight, report only](images/phase1/prep-sync-report.png)
@@ -245,7 +245,7 @@ Then applied, which adds the onmicrosoft domain as an alternative UPN suffix on 
 forest and retargets each seed user:
 
 ```powershell
-.\03-prep-sync.ps1 -UpnSuffix sindredemitriohotmail.onmicrosoft.com -DomainName sindredg.local -Apply
+.\03-prep-sync.ps1 -UpnSuffix <tenant>.onmicrosoft.com -DomainName sindredg.local -Apply
 ```
 
 Confirmed directly against the directory:
@@ -282,7 +282,7 @@ synchronisation later, when the error surfaces hours after the cause:
 | DNS answering | `Resolve-DnsName sindredg.local` from CS01 | Done |
 | CS01 joined | `Get-ComputerInfo -Property CsDomainRole` reads `MemberServer` | Done |
 | Users present and enabled | `Get-ADUser` in `OU=Users,OU=Sync` | Done |
-| UPNs routable | Every seed user ends `@sindredemitriohotmail.onmicrosoft.com` | Done |
+| UPNs routable | Every seed user ends `@<tenant>.onmicrosoft.com` | Done |
 | No sync blockers | `03-prep-sync.ps1` reports zero issues | Done |
 
 `dcdiag /q` printing nothing at all is success. It only reports failures.

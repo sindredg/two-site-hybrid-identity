@@ -1,7 +1,7 @@
 # Phase 2. Entra Connect Sync
 
 **Goal:** synchronise the five seeded users from `sindredg.local` into Microsoft
-Entra ID, scoped to one OU, so hybrid join in Phase 3 has identities to attach
+Entra ID, scoped to one OU, so hybrid join in Phase 4 has identities to attach
 devices to.
 
 > Installed on CS01. Downloaded from the
@@ -12,11 +12,11 @@ devices to.
 **Why this matters.** This is the join between the two halves of the lab. Until it
 runs, the forest and the tenant are unrelated directories that happen to share a
 UPN suffix. Afterwards there is one identity with two representations, which is
-what hybrid join in Phase 3 and the Entra-backed LAPS in Phase 6 both build on.
+what hybrid join in Phase 4 and the Entra-backed LAPS in Phase 7 both build on.
 
 **Status: complete.** Five users synced with correct UPNs, nothing from the
 excluded OU present, zero errors. Problems hit along the way are in
-[99-troubleshooting.md](99-troubleshooting.md).
+[troubleshooting/02-entra-connect.md](troubleshooting/02-entra-connect.md).
 
 ---
 
@@ -108,7 +108,7 @@ hypothetical. It also needs no additional agents. Reasoning in
 
 **Seamless SSO enabled.** Strictly redundant here, since hybrid-joined devices get
 SSO through the Primary Refresh Token anyway. Enabled because it is free and
-because it gives Phase 4 a real Group Policy task: Seamless SSO only works once
+because it gives Phase 5 a real Group Policy task: Seamless SSO only works once
 `https://autologon.microsoftazuread-sso.com` is in the browser's Intranet zone,
 which is a GPO. It also creates a 30-day key rotation obligation, recorded in
 [risk-and-limitations.md](risk-and-limitations.md).
@@ -154,7 +154,7 @@ The page that justifies the OU structure built in Phase 1:
 |---|---|
 | `OU=Users,OU=Sync` | The five seed users |
 | `OU=Groups,OU=Sync` | The four security groups |
-| `OU=Workstations,OU=Sync` | Empty now. Phase 3 needs computer objects here for hybrid join |
+| `OU=Workstations,OU=Sync` | Empty now. Phase 4 needs computer objects here for hybrid join |
 
 | Excluded | Why it matters |
 |---|---|
@@ -162,7 +162,7 @@ The page that justifies the OU structure built in Phase 1:
 | `CN=Users` | Holds `labadmin`, `krbtgt`, `Guest` and the `MSOL_` connector account |
 
 **OU filtering is a fixed list, not a rule.** Any OU created later is not synced
-automatically. That will matter in Phase 7 when the tier OUs appear.
+automatically. That will matter in Phase 8 when the tier OUs appear.
 
 **Filter users and devices: synchronize all.** The OU filter is already the
 boundary. The group-based filter on that page is for pilot rollouts, ignores
@@ -187,7 +187,7 @@ Four advisories on the final page, three worth acting on:
 
 **AD Recycle Bin is not enabled.** A genuine gap. Without it a deleted user or OU
 is recoverable only from a system state backup. One command, irreversible, carried
-into Phase 4:
+into Phase 5:
 
 ```powershell
 Enable-ADOptionalFeature 'Recycle Bin Feature' -Scope ForestOrConfigurationSet -Target sindredg.local
@@ -202,7 +202,7 @@ object recreated. `objectGUID` is immutable but tied to one object, so recreatin
 a user produces a duplicate in the cloud rather than a match.
 
 **Seamless SSO needs Group Policy to finish.** The wizard says so explicitly,
-which turns a Phase 4 task from invented to requested.
+which turns a Phase 5 task from invented to requested.
 
 ---
 
@@ -260,7 +260,7 @@ disabled, which is what choosing PHS means in practice.
 | Check | Expected | Result |
 |---|---|---|
 | Synced users | Five: `alindqvist`, `bkarlsson`, `cdubois`, `dvolkov`, `erossi` | All five present |
-| UPN suffix | `@sindredemitriohotmail.onmicrosoft.com` | Correct |
+| UPN suffix | `@<tenant>.onmicrosoft.com` | Correct |
 | On-premises sync enabled | True on all five | Yes on all five |
 | Service accounts from `OU=NoSync` | Absent | Absent |
 | `MSOL_` connector account | Absent from the cloud | Absent |
@@ -292,7 +292,7 @@ which is what proves the OU filtering did real work rather than being decorative
 | Item | Where |
 |---|---|
 | Re-enable IE ESC on CS01 | Set `IsInstalled` back to `1`. Disabled for the installer, not permanently |
-| Enable AD Recycle Bin | Phase 4 |
+| Enable AD Recycle Bin | Phase 5 |
 | Roll the Seamless SSO Kerberos key every 30 days | Ongoing. See `risk-and-limitations.md` |
 | Consider vTPM on CS01 | Optional Terraform change |
 
@@ -300,10 +300,10 @@ which is what proves the OU filtering did real work rather than being decorative
 
 ## Next
 
-[Phase 3](03-hybrid-join.md) enables CL01 and CL02, joins them to the domain, and
+[Phase 3](03-branch-network.md) enables CL01 and CL02, joins them to the domain, and
 configures hybrid Entra join through this same wizard. That is the step Cloud Sync
 could not have supported, and the precondition for backing a LAPS password up to
-Entra ID in Phase 6.
+Entra ID in Phase 7.
 
 
 ---
@@ -322,6 +322,6 @@ itself. Password writeback and group writeback also need P1 and are not used her
 on 30 September 2026**. This lab installed 2.6.84.0.
 
 **Connect Sync, not Cloud Sync.** Cloud Sync cannot do device synchronization, and
-therefore cannot do hybrid Entra join, which is Phase 3 and the precondition for
-Phase 6. Full comparison in [decisions.md](decisions.md).
+therefore cannot do hybrid Entra join, which is Phase 4 and the precondition for
+Phase 7. Full comparison in [decisions.md](decisions.md).
 

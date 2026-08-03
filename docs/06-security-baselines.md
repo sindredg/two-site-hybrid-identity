@@ -1,4 +1,4 @@
-# Phase 5. Security baselines
+# Phase 6. Security baselines
 
 > **Status: Pending.** Not yet executed. Written from documented behaviour, to be
 > rewritten as a record with screenshots once run.
@@ -35,7 +35,7 @@ IaC in the way the Azure footprint is.
 1. Download the toolkit and the Windows Server 2022 member server baseline
 2. Import the baseline as a GPO with `Import-GPO`
 3. Link it to `OU=Workstations`, security-filtered to **CL01 only**
-4. Leave CL02 receiving only the Phase 4 policy, as the control
+4. Leave CL02 receiving only the Phase 5 policy, as the control
 5. Run Policy Analyzer against both and export the comparison
 
 CL01 hardened, CL02 untouched, everything else identical. That isolates the
@@ -79,5 +79,5 @@ baseline applied blindly is not.
 
 ## Next
 
-[Phase 6](06-windows-laps.md) removes the shared local administrator password,
-using the Group Policy estate from Phase 4 and the hybrid join from Phase 3.
+[Phase 7](07-windows-laps.md) removes the shared local administrator password,
+using the Group Policy estate from Phase 5 and the hybrid join from Phase 4.

@@ -5,14 +5,15 @@ and each states what "done" means so progress is checkable rather than asserted.
 
 Status legend: Completed, In progress, Ready to start, Pending, Stretch.
 
-The lab has two halves that meet at the end. Phases 2 and 3 connect the forest to
-Microsoft Entra ID. Phases 4 to 7 manage and harden the endpoints inside it. Phase
-6 is where they join: Group Policy delivering a LAPS policy whose secret lands in
+The lab has two halves that meet at the end. Phases 2 to 4 connect the forest to
+Microsoft Entra ID. Phases 5 to 8 manage and harden the endpoints inside it. Phase
+7 is where they join: Group Policy delivering a LAPS policy whose secret lands in
 the cloud.
 
-Phase 3 also carries a networking layer that was not in the original plan. The
-endpoints live in a second region, peered back to the domain controller, because
-that was the only way to fit them inside a free trial's quota.
+Phase 3 is a networking layer that was not in the original plan. The endpoints live
+in a second region, peered back to the domain controller, because that was the only
+way to fit them inside a free trial's quota. It earned its place: Phase 4 has real
+AD Sites and Services work because of it.
 
 > **Everything here is free.** Entra Connect Sync, hybrid Entra join and Windows
 > LAPS all work on Entra ID Free. The lab stops deliberately before Conditional
@@ -57,7 +58,7 @@ clean, `03-prep-sync.ps1` reporting no blockers.
 ## Phase 2. Entra Connect Sync: Completed
 
 **Goal.** Synchronise the five seeded users into Microsoft Entra ID, scoped to one
-OU, so hybrid join in Phase 3 has identities to attach devices to.
+OU, so hybrid join in Phase 4 has identities to attach devices to.
 
 Walkthrough: [docs/02-entra-connect.md](docs/02-entra-connect.md).
 
@@ -72,54 +73,70 @@ which means it cannot do hybrid join. Reasoning in `docs/decisions.md`.
 UPN suffix on all of them, nothing from `OU=NoSync` present, zero sync errors.
 
 **Carried forward.** Re-enable IE ESC on CS01, enable the AD Recycle Bin in Phase
-4, and roll the Seamless SSO Kerberos key every 30 days.
+5, and roll the Seamless SSO Kerberos key every 30 days.
 
 ---
 
-## Phase 3. Branch office and hybrid Entra join: In progress
+## Phase 3. Branch office network: Completed
 
-**Goal.** A second site in a second region, peered back to the domain controller,
-with clients joined to both directories. The second half is the precondition for the
-cloud half of Phase 6.
+**Goal.** A second site in a second region, peered back to the domain controller.
 
-Walkthrough: [docs/03-hybrid-join.md](docs/03-hybrid-join.md).
+Walkthrough: [docs/03-branch-network.md](docs/03-branch-network.md).
 
-**The branch office was forced, then kept.** The clients would not fit inside the
-Sweden Central vCPU quota, which a free trial cannot raise. Rather than shrink the
-lab, they moved to their own region, resource group and Terraform state. That turned
-a dead end into cross-region peering, DNS and Kerberos over that peering, and a
-genuine reason for AD Sites and Services.
+**Forced, then kept.** The clients would not fit inside the Sweden Central vCPU
+quota, which a free trial cannot raise. Rather than shrink the lab, they moved to
+their own region, resource group and Terraform state. That turned a dead end into
+cross-region peering and a genuine reason for AD Sites and Services in Phase 4.
 
-Done:
+Delivered:
 
-1. Clients removed from the HQ root, orphaned NICs cleaned up
-2. `terraform/branch/` built: own resource group, VNet `10.20.0.0/16`, NSG, both
-   peering objects, clients on `10.20.1.4` and `10.20.1.5`
-3. `terraform/modules/windows-vm/` extracted, encoding the lab's earlier failures as
-   plan-time validations
-4. Peering verified: DC01 answers from the branch at roughly 16 ms
+| Item | Detail |
+|---|---|
+| Second region | Denmark East, chosen because it had both spare quota and the same VM size as HQ |
+| Second state | `terraform/branch/`, own resource group `rg-branch-office` |
+| Global VNet peering | Both directions, owned by the branch root |
+| Shared module | `terraform/modules/windows-vm/`, encoding earlier failures as plan-time validations |
+| One Bastion for both sites | Basic SKU reaches peered networks, so no second host |
 
-Remaining:
+**Cost note.** Denmark East does not publish `Microsoft.DevTestLab`, so the branch
+clients have no auto-shutdown schedule and must be deallocated by hand.
 
-5. Domain join CL01 and CL02, move their computer objects into `OU=Workstations`
-6. Confirm computer objects reach Entra, since hybrid join depends on it
-7. Run the hybrid join configuration wizard in Entra Connect
-8. Verify with `dsregcmd /status`
-9. Define both sites and subnets in AD Sites and Services
+**Exit criteria met.** Peering `Connected` both ways, clients on their intended
+addresses, and DC01 answering from the branch at roughly 16 ms.
+
+---
+
+## Phase 4. Sites, domain join and hybrid Entra join: Completed
+
+**Goal.** Make the directory aware it spans two sites, join both clients, and
+register them with Entra ID. The precondition for the cloud half of Phase 7.
+
+Walkthrough: [docs/04-hybrid-join.md](docs/04-hybrid-join.md).
+
+Delivered:
+
+| Item | Detail |
+|---|---|
+| AD Sites and Services | `HQ-SwedenCentral` and `Branch-DenmarkEast`, each with its subnet |
+| Domain join | Both clients, straight into `OU=Workstations,OU=Sync` via `-OUPath` |
+| Service connection point | Written to the forest by the Entra Connect wizard |
+| Hybrid join | Both clients `AzureAdJoined: YES` and `DomainJoined: YES` |
+
+**Site awareness is the part worth showing.** `nltest` from a branch client reports
+`Our Site Name: Branch-DenmarkEast` against `Dc Site Name: HQ-SwedenCentral`. Two
+different values in one output is what a multi-site directory looks like, and it
+only exists because Phase 3 split the lab.
 
 **No licence required.** Hybrid join is free. Only the Conditional Access that
 would normally sit on top of it needs P1.
 
-**Cost note.** The branch region does not publish `Microsoft.DevTestLab`, so those
-two clients have no auto-shutdown schedule and must be deallocated by hand.
-
-**Exit criteria.** `AzureAdJoined: YES` and `DomainJoined: YES` on both clients,
-both listed as Microsoft Entra hybrid joined in the portal, and both subnets bound
-to named sites.
+**Exit criteria met.** Both devices listed as Microsoft Entra hybrid joined in the
+portal, both subnets bound to named sites, and `dsregcmd /status` confirming both
+joins on both clients.
 
 ---
 
-## Phase 4. Group Policy foundation: Pending
+## Phase 5. Group Policy foundation: Pending
 
 **Goal.** A GPO estate that is designed rather than accumulated, and version
 controlled rather than clicked.
@@ -137,7 +154,7 @@ controlled rather than clicked.
 
 ---
 
-## Phase 5. Security baselines: Pending
+## Phase 6. Security baselines: Pending
 
 **Goal.** Apply Microsoft's own hardening guidance and measure the difference
 rather than trusting it.
@@ -160,7 +177,7 @@ every deviation recorded in `decisions.md` with a reason.
 
 ---
 
-## Phase 6. Windows LAPS, both backends: Pending
+## Phase 7. Windows LAPS, both backends: Pending
 
 **Goal.** Remove the shared local administrator password, and demonstrate the two
 LAPS storage modes side by side. This is where the two halves of the lab meet.
@@ -173,7 +190,7 @@ A hybrid-joined device can back its password up to **either** Active Directory
 | CL01 | Active Directory | `Get-LapsADPassword` |
 | CL02 | Microsoft Entra ID | Entra admin center or Graph |
 
-Both policies are delivered by **Group Policy**, built in Phase 4. Intune is not
+Both policies are delivered by **Group Policy**, built in Phase 5. Intune is not
 required and is not used.
 
 1. Extend the schema: `Update-LapsADSchema`, a one-time forest operation
@@ -197,7 +214,7 @@ principal. The shared-credential entry in `risk-and-limitations.md` closes.
 
 ---
 
-## Phase 7. Tiered administration: Stretch
+## Phase 8. Tiered administration: Stretch
 
 **Goal.** Stop using one Domain Admin account for everything, which is the other
 weakness the risk register names.
