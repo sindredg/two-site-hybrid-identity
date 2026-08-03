@@ -100,3 +100,66 @@ to private-by-default.
 If this VNet is ever rebuilt, outbound may need an explicit NAT Gateway. Windows
 Update, the Security Compliance Toolkit download, and activation all depend on it,
 so the failure would be broad rather than subtle.
+
+---
+
+## 8. The Seamless SSO key needs rotating every 30 days, by hand
+
+Enabling Seamless SSO in Phase 2 created a computer account, `AZUREADSSOACC`, in
+the forest. Microsoft is blunt about what its Kerberos decryption key is:
+
+> The Kerberos decryption key on a computer account, if leaked, can be used to
+> generate Kerberos tickets for any synchronized user. Malicious actors can then
+> impersonate Microsoft Entra sign-ins for compromised users.
+
+That is a skeleton key for every synced identity. It should be rolled **at least
+every 30 days**, and nothing does it for you:
+
+```powershell
+Import-Module 'C:\Program Files\Microsoft Azure Active Directory Connect\AzureADSSO.psd1'
+New-AzureADSSOAuthenticationContext
+$creds = Get-Credential
+Update-AzureADSSOForest -OnPremCredentials $creds
+```
+
+Run it more than once per forest in a session and Seamless SSO breaks until
+existing tickets expire.
+
+**Two related obligations:**
+
+The account should use **AES256**, not `RC4_HMAC_MD5`. The July 2026 Windows
+Server update changes the default Kerberos encryption type in AD DS from RC4 to
+AES-256, and an account still on RC4 when that lands can stop working. The key
+must be rolled *before* changing encryption type, not after.
+
+The account itself should be protected: manageable only by Domain Admins, Kerberos
+delegation disabled on it, and parked in an OU where it will not be deleted by
+accident.
+
+**Why this is an open risk rather than a closed task.** A manual 30-day rotation
+with no expiry warning and no enforcement is the kind of thing that lapses
+silently. Seamless SSO was enabled for demonstration value and because it gives
+Phase 4 a real Group Policy task, not because this lab needs it. If the rotation
+is not going to happen, the honest options are to accept the risk explicitly or to
+disable the feature.
+
+---
+
+## 9. AD Recycle Bin is not enabled
+
+Flagged by the Entra Connect wizard on its completion page. Without it, a deleted
+user, group or OU is recoverable only from a system state backup, and this lab has
+no backup at all.
+
+```powershell
+Enable-ADOptionalFeature 'Recycle Bin Feature' -Scope ForestOrConfigurationSet -Target sindredg.local
+```
+
+**It is irreversible**, which is why it is off by default and why it is worth a
+moment's thought rather than a reflex. For a lab where every object was created by
+a script and could be recreated by re-running it, the case is weaker than in
+production. The case *for* enabling it is that Phase 6 extends the schema and
+Phase 7 restructures OUs, and an accidental deletion during either would otherwise
+be unrecoverable.
+
+Carried into Phase 4.

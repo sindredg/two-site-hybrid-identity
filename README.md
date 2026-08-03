@@ -116,8 +116,8 @@ Phase walkthroughs, with status:
 |---|---|---|
 | [00-infrastructure.md](docs/00-infrastructure.md) | Azure footprint: network, VMs, Bastion | **Completed** |
 | [01-ad-environment.md](docs/01-ad-environment.md) | Forest, DNS, domain join, directory | **Completed** |
-| [02-entra-connect.md](docs/02-entra-connect.md) | Entra Connect Sync, scoped to one OU | Ready to start |
-| [03-hybrid-join.md](docs/03-hybrid-join.md) | Hybrid Entra join on both clients | Pending |
+| [02-entra-connect.md](docs/02-entra-connect.md) | Entra Connect Sync, scoped to one OU | **Completed** |
+| [03-hybrid-join.md](docs/03-hybrid-join.md) | Hybrid Entra join on both clients | Ready to start |
 | [04-group-policy.md](docs/04-group-policy.md) | Central Store, linked GPOs, backed up to XML | Pending |
 | [05-security-baselines.md](docs/05-security-baselines.md) | Microsoft baselines, hardened against control | Pending |
 | [06-windows-laps.md](docs/06-windows-laps.md) | LAPS to Active Directory and to Entra ID | Pending |

@@ -47,27 +47,25 @@ clean, `03-prep-sync.ps1` reporting no blockers.
 
 ---
 
-## Phase 2. Entra Connect Sync: Ready to start
+## Phase 2. Entra Connect Sync: Completed
 
 **Goal.** Synchronise the five seeded users into Microsoft Entra ID, scoped to one
 OU, so hybrid join in Phase 3 has identities to attach devices to.
 
 Walkthrough: [docs/02-entra-connect.md](docs/02-entra-connect.md).
 
-1. Confirm prerequisites on CS01: .NET 4.7.2, TLS 1.2, PowerShell 5.0
-2. Download Connect Sync from the Entra admin center, version 2.5.79.0 or higher
-3. Install with custom settings: Password Hash Sync, filtering scoped to `OU=Sync`
-4. Force a delta sync, confirm the five users land in Entra
-5. Confirm `ServiceAccounts` under `OU=NoSync` did **not** sync
+Connect Sync 2.6.84.0 on CS01, Password Hash Synchronization with Seamless SSO,
+filtering scoped to `OU=Sync`. Authentication to the tenant is by app registration
+and certificate rather than a stored password.
 
 **Connect Sync, not Cloud Sync.** Cloud Sync cannot do device synchronization,
 which means it cannot do hybrid join. Reasoning in `docs/decisions.md`.
 
-**Version deadline.** Builds below 2.5.79.0 stop synchronising on 30 September
-2026. Installing anything older is installing an already-broken product.
+**Exit criteria met.** Five users in Entra with on-premises sync enabled, correct
+UPN suffix on all of them, nothing from `OU=NoSync` present, zero sync errors.
 
-**Exit criteria.** Five users in Entra with `onPremisesSyncEnabled` true, zero sync
-errors, and nothing from `OU=NoSync` present.
+**Carried forward.** Re-enable IE ESC on CS01, enable the AD Recycle Bin in Phase
+4, and roll the Seamless SSO Kerberos key every 30 days.
 
 ---
 
