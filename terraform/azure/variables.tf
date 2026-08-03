@@ -49,13 +49,13 @@ variable "enable_bastion" {
 }
 
 variable "enable_client" {
-  description = "Create CL01. Leave false until you are ready to test hybrid Entra join, so you only pay for two VMs."
+  description = "Create CL01 and CL02, the managed endpoints that hybrid join, Group Policy, security baselines and LAPS target. Two of them so one can be hardened and the other kept as a control. Leave false while working on the directory alone, so you only pay for two VMs."
   type        = bool
   default     = false
 }
 
 variable "dns_servers" {
-  description = "VNet DNS servers. Empty means Azure-provided DNS. Set to [\"10.10.1.4\"] after you promote DC01, otherwise CS01 and CL01 cannot resolve the domain and will fail to join."
+  description = "VNet DNS servers. Empty means Azure-provided DNS. Set to [\"10.10.1.4\"] after you promote DC01, otherwise the member server and clients cannot resolve the domain and will fail to join."
   type        = list(string)
   default     = []
 }
@@ -81,7 +81,7 @@ variable "tags" {
   description = "Tags applied to every resource."
   type        = map(string)
   default = {
-    project    = "hybrid-identity-lab"
+    project    = "ad-infrastructure-lab"
     managed_by = "terraform"
   }
 }

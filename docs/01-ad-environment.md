@@ -2,18 +2,17 @@
 
 **Goal:** promote DC01 to a new forest, point the virtual network at it, join CS01
 to the domain, and build a directory structure realistic enough that scoped
-synchronisation is a meaningful thing to demonstrate in Phase 2.
+Group Policy has a real structure to target in the phases that follow.
 
 > The three scripts live in `scripts/ad-bootstrap/`. See
 > [Install a new Active Directory forest](https://learn.microsoft.com/windows-server/identity/ad-ds/deploy/install-a-new-windows-server-2012-active-directory-forest--level-200-)
 > and [Microsoft Entra Connect prerequisites](https://learn.microsoft.com/entra/identity/hybrid/connect/how-to-connect-install-prerequisites).
 
-**Why this matters.** Everything after this depends on it. Entra Connect has
-nothing to synchronise without a directory, hybrid join has no domain to join, and
-Conditional Access has no on-premises identities to make decisions about. The
-directory structure also decides what Phase 2 can show: an unfiltered sync of five
-users proves very little, whereas a scoped sync that deliberately excludes service
-accounts demonstrates a real design choice.
+**Why this matters.** Everything after this depends on it. Group Policy has nothing
+to link to without an OU structure, LAPS has no computer objects to manage, and a
+tiered administration model has no boundary to enforce. The OU layout decided here
+is what every later phase targets, which is why it is designed rather than
+accumulated.
 
 **Trade-off from best practice.** Two things here are weaker than production.
 `sindredg.local` is not routable and cannot be verified in Entra, so the forest
@@ -34,18 +33,18 @@ were bugs in our own scripts.
 | Object | Name | Purpose |
 |---|---|---|
 | Forest | `sindredg.local` (NetBIOS `SINDREDG`) | The domain, with DNS on DC01 |
-| OU | `OU=Sync` | Everything Entra Connect will be scoped to |
+| OU | `OU=Sync` | Named for the original sync scope. Now the branch Group Policy targets |
 | OU | `OU=Users,OU=Sync` | Synced user accounts |
 | OU | `OU=Groups,OU=Sync` | Synced security groups |
-| OU | `OU=Workstations,OU=Sync` | Domain-joined devices, used in Phase 3 |
+| OU | `OU=Workstations,OU=Sync` | Where CL01 lands, and what computer policy and LAPS target |
 | OU | `OU=NoSync` | Deliberately outside the sync scope |
-| OU | `OU=ServiceAccounts,OU=NoSync` | Proves filtering works by being absent from Entra |
+| OU | `OU=ServiceAccounts,OU=NoSync` | Deliberately outside the policy scope, so exclusion is demonstrable |
 
 | Group | Intended use |
 |---|---|
-| `sg-finance` | Conditional Access target in Phase 4 |
-| `sg-it-admins` | Will require a hybrid joined device |
-| `sg-helpdesk` | Access review target in Phase 5 |
+| `sg-finance` | Group Policy security filtering target |
+| `sg-it-admins` | Tier 1 administrators in the tiered admin model |
+| `sg-helpdesk` | Tier 2, and the group denied logon to domain controllers |
 | `sg-contractors` | Stricter policy target |
 
 | User | Department | Title | Group |
@@ -56,9 +55,9 @@ were bugs in our own scripts.
 | `dvolkov` | IT | Service Desk Analyst | `sg-helpdesk` |
 | `erossi` | External | Contractor | `sg-contractors` |
 
-Departments and titles are populated deliberately. Entra Connect synchronises
-them, and Phase 4 can then target Conditional Access on an attribute rather than a
-hand-maintained group.
+Departments and titles are populated deliberately. They give Group Policy
+something realistic to filter on, and they make the directory look like a
+directory rather than five placeholder accounts.
 
 ---
 
@@ -470,6 +469,10 @@ Full write-ups with the verbatim error strings are in
 
 ## Next
 
-Phase 2 installs Entra Connect Sync on CS01 and is blocked on licensing: the
-tenant currently holds zero subscribed SKUs, and the P2 trial should be started
-before that phase rather than during it.
+[Phase 2](02-entra-connect.md) installs Entra Connect Sync on CS01 and
+synchronises the five seeded users into Microsoft Entra ID. It needs no licence:
+sync is free with any Azure subscription.
+
+The lab runs as far as hybrid join and Windows LAPS, then stops at Conditional
+Access, which needs Entra ID P1. That boundary and what was rejected on the way to
+it are recorded in [decisions.md](decisions.md).

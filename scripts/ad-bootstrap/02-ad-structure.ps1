@@ -64,15 +64,26 @@ $svcDN      = New-OuIfMissing -Name 'ServiceAccounts' -Path $noSyncDN
 Write-Host "`n== Security groups ==" -ForegroundColor Cyan
 
 $groups = @(
-    @{ Name = 'sg-finance';     Description = 'Finance department - Conditional Access target' }
-    @{ Name = 'sg-it-admins';   Description = 'IT administrators - require hybrid joined device' }
-    @{ Name = 'sg-helpdesk';    Description = 'Helpdesk - access review target in Phase 5' }
-    @{ Name = 'sg-contractors'; Description = 'External contractors - stricter CA policy' }
+    @{ Name = 'sg-finance';     Description = 'Finance department - Group Policy security filtering target' }
+    @{ Name = 'sg-it-admins';   Description = 'Tier 1 administrators - member servers only' }
+    @{ Name = 'sg-helpdesk';    Description = 'Tier 2 - denied logon to domain controllers' }
+    @{ Name = 'sg-contractors'; Description = 'External contractors - restricted endpoint policy' }
 )
 
 foreach ($g in $groups) {
-    if (Get-ADGroup -Filter "Name -eq '$($g.Name)'" -ErrorAction SilentlyContinue) {
+    $existing = Get-ADGroup -Filter "Name -eq '$($g.Name)'" -Properties Description -ErrorAction SilentlyContinue
+    if ($existing) {
         Write-Host "  exists  $($g.Name)"
+
+        # Repair the description rather than only checking the group is there.
+        # Learned twice in Phase 1: a guard that only tests existence lets every
+        # other attribute drift silently. These descriptions changed once the
+        # later phases were scoped, and without this a re-run would leave the
+        # stale ones in place while reporting success.
+        if ($existing.Description -ne $g.Description) {
+            Set-ADGroup -Identity $existing -Description $g.Description
+            Write-Host "          description updated" -ForegroundColor Green
+        }
     } else {
         New-ADGroup -Name $g.Name -GroupScope Global -GroupCategory Security `
                     -Path $groupsDN -Description $g.Description

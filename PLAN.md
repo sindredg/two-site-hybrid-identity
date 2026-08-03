@@ -3,7 +3,17 @@
 Phases ordered by dependency, not preference. Each is blocked by the one above it,
 and each states what "done" means so progress is checkable rather than asserted.
 
-Status legend: Completed, In progress, Pending, Blocked.
+Status legend: Completed, In progress, Ready to start, Pending, Stretch.
+
+The lab has two halves that meet at the end. Phases 2 and 3 connect the forest to
+Microsoft Entra ID. Phases 4 to 7 manage and harden the endpoints inside it. Phase
+6 is where they join: Group Policy delivering a LAPS policy whose secret lands in
+the cloud.
+
+> **Everything here is free.** Entra Connect Sync, hybrid Entra join and Windows
+> LAPS all work on Entra ID Free. The lab stops deliberately before Conditional
+> Access (P1) and PIM (P2), which are unobtainable for this tenant. That boundary
+> is documented rather than worked around; see [docs/decisions.md](docs/decisions.md).
 
 ---
 
@@ -16,119 +26,190 @@ VMs with their NICs, disks and auto-shutdown schedules. All Terraform, in
 | Delivered | Detail |
 |---|---|
 | No internet-facing surface | Public IPs removed, single inbound NSG rule scoped to `VirtualNetwork` |
-| Bastion access | Basic SKU, browser-based, gated behind `enable_bastion` |
-| Static private IPs | DC01 `.4`, CS01 `.5`, CL01 `.6` |
-| Cost control | Daily auto-shutdown, CL01 gated behind `enable_client` |
+| Bastion access | Basic SKU, gated behind `enable_bastion` |
+| Static private IPs | DC01 `.4`, CS01 `.5`, clients from `.6` |
+| Cost control | Daily auto-shutdown, clients gated behind `enable_client` |
 
-**Exit criteria met.** `terraform plan -detailed-exitcode` returns 0 against the
-deployed environment.
+**Exit criteria met.** `terraform plan -detailed-exitcode` returns 0.
 
 ---
 
 ## Phase 1. AD environment: Completed
 
-**Goal.** A working forest with a directory structure realistic enough that
-scoped synchronisation is a meaningful thing to demonstrate. Walkthrough in
-`docs/01-ad-environment.md`. Forest is `sindredg.local`, NetBIOS `SINDREDG`.
+Forest `sindredg.local`, NetBIOS `SINDREDG`, domain and forest functional level
+Windows2016. Walkthrough in `docs/01-ad-environment.md`.
 
-1. Promote DC01 to a new forest and install DNS. `scripts/ad-bootstrap/01-promote-dc.ps1`. **Done**
-2. Point the VNet at the DC: set `dns_servers = ["10.10.1.4"]` in
-   `terraform/azure/terraform.tfvars`, re-apply, then reboot CS01. **Done**
-3. Join CS01 to the domain. **Done**, reports `MemberServer`
-4. Create OUs, security groups and seed users. `scripts/ad-bootstrap/02-ad-structure.ps1`. **Done**, five users enabled
-5. Add a routable UPN suffix and pre-flight for sync. `scripts/ad-bootstrap/03-prep-sync.ps1`. **Done**, all five UPNs on the onmicrosoft suffix
+Six OUs split into `OU=Sync` and `OU=NoSync`, four security groups, five seed
+users enabled with UPNs on the tenant's verified domain.
 
-**Step 2 is the one people skip.** Azure-provided DNS cannot resolve an AD domain,
-so the join fails with a "domain not found" message that reads like a credentials
-problem. The VNet DNS change also needs a reboot before a VM picks it up, because
-the NIC only re-reads DHCP on restart.
-
-**Exit criteria.** CS01 domain-joined; seeded users present with routable UPNs; no
-duplicate `proxyAddresses`; `dcdiag` clean.
+**Exit criteria met.** Member server domain-joined, five users enabled, `dcdiag`
+clean, `03-prep-sync.ps1` reporting no blockers.
 
 ---
 
-## Phase 2. Entra Connect Sync: Blocked on licensing
+## Phase 2. Entra Connect Sync: Ready to start
 
-**Blocker.** The tenant has zero subscribed SKUs. Conditional Access requires
-Entra ID P1, PIM and access reviews require P2. Start the P2 trial before this
-phase, not during it.
+**Goal.** Synchronise the five seeded users into Microsoft Entra ID, scoped to one
+OU, so hybrid join in Phase 3 has identities to attach devices to.
 
-1. Verify a custom domain in Entra, match the on-prem UPN suffix to it
-2. Install Entra Connect Sync on CS01: Password Hash Sync, filtering scoped to
-   `OU=Sync`
-3. Force a delta sync, confirm seeded users land in Entra
-4. Record the decisions in an ADR: PHS over PTA, filtering scope, and why
+Walkthrough: [docs/02-entra-connect.md](docs/02-entra-connect.md).
 
-Scoping the sync to one OU rather than the whole directory is the point of the
-`Sync` and `NoSync` split created in Phase 1. Syncing everything would work and
-demonstrate nothing.
+1. Confirm prerequisites on CS01: .NET 4.7.2, TLS 1.2, PowerShell 5.0
+2. Download Connect Sync from the Entra admin center, version 2.5.79.0 or higher
+3. Install with custom settings: Password Hash Sync, filtering scoped to `OU=Sync`
+4. Force a delta sync, confirm the five users land in Entra
+5. Confirm `ServiceAccounts` under `OU=NoSync` did **not** sync
 
-**Exit criteria.** On-prem users visible in Entra with `onPremisesSyncEnabled`
-true, sync errors at zero.
+**Connect Sync, not Cloud Sync.** Cloud Sync cannot do device synchronization,
+which means it cannot do hybrid join. Reasoning in `docs/decisions.md`.
 
----
+**Version deadline.** Builds below 2.5.79.0 stop synchronising on 30 September
+2026. Installing anything older is installing an already-broken product.
 
-## Phase 3. Hybrid join: Blocked on Phase 2
-
-1. Set `enable_client = true`, apply, reboot CL01 so it takes the DC as DNS
-2. Domain join CL01
-3. Configure hybrid Entra join through Entra Connect, verify with `dsregcmd /status`
-
-**Exit criteria.** `AzureAdJoined: YES` and `DomainJoined: YES` on CL01, and the
-device listed as Microsoft Entra hybrid joined in the portal.
+**Exit criteria.** Five users in Entra with `onPremisesSyncEnabled` true, zero sync
+errors, and nothing from `OU=NoSync` present.
 
 ---
 
-## Phase 4. Conditional Access as code: Blocked on Phase 3
+## Phase 3. Hybrid Entra join: Pending
 
-The centrepiece. Terraform `azuread` provider, policies under version control.
+**Goal.** Devices that are joined to both directories, which is the precondition
+for the cloud half of Phase 6.
 
-1. Create a break-glass account and exclude it from every policy. Document why.
-   This is the single detail that separates a real deployment from a demo
-2. Write policies as `azuread_conditional_access_policy` in
-   `enabledForReportingButNotEnforced`:
+1. Set `enable_client = true`, apply, restart the clients so they take DC01 as DNS
+2. Domain join CL01 and CL02, move their computer objects into `OU=Workstations`
+3. Ensure `OU=Workstations` is in the Connect Sync scope, so computer objects sync
+4. Run the hybrid join configuration wizard in Entra Connect
+5. Verify with `dsregcmd /status`
 
-   | Policy | Intent |
-   |---|---|
-   | Require MFA, all users, all resources | Baseline |
-   | Require hybrid joined or compliant device for admins | Ties Phase 3 to access control |
-   | Block legacy authentication | Closes the bypass that makes MFA theatre |
-   | Named location for trusted egress | Demonstrates condition scoping |
+**No licence required.** Hybrid join is free. Only the Conditional Access that
+would normally sit on top of it needs P1.
 
-3. Review impact in the sign-in logs and the What If tool before enforcing
-4. Flip to `enabled` one policy at a time, capturing evidence at each step
-
-Report-only first is not caution for its own sake. A block policy scoped to all
-resources can lock every administrator out of the tenant, and the break-glass
-account is the only way back.
-
-**Exit criteria.** Policies applied from Terraform, report-only evidence captured,
-then enforced without locking anyone out.
+**Exit criteria.** `AzureAdJoined: YES` and `DomainJoined: YES` on both clients,
+and both listed as Microsoft Entra hybrid joined in the portal.
 
 ---
 
-## Phase 5. Governance: Requires P2
+## Phase 4. Group Policy foundation: Pending
 
-1. Dynamic group membership driven by synced on-prem attributes
-2. Access reviews over a privileged group
-3. PIM: an admin role made eligible rather than permanent, with approval
+**Goal.** A GPO estate that is designed rather than accumulated, and version
+controlled rather than clicked.
 
-**Exit criteria.** A documented just-in-time elevation with an audit trail.
+1. Create the Group Policy Central Store on DC01 so ADMX templates are consistent
+2. Build linked GPOs against the OU structure: user policy on `OU=Users`, computer
+   policy on `OU=Workstations`
+3. Demonstrate loopback processing, the setting most often misunderstood
+4. Verify with `gpresult /h` and Group Policy Modeling, not by assuming
+5. Back every GPO up to XML with `Backup-GPO` and commit it, so the estate lives in
+   the repo rather than only in SYSVOL
+
+**Exit criteria.** Policies apply to the right targets, `gpresult` proves it, and
+`scripts/gpo/` contains restorable backups.
+
+---
+
+## Phase 5. Security baselines: Pending
+
+**Goal.** Apply Microsoft's own hardening guidance and measure the difference
+rather than trusting it.
+
+1. Download the Microsoft Security Compliance Toolkit onto CS01
+2. Import the Windows Server 2022 member server baseline as GPOs
+3. Apply it to CL01 and leave CL02 as an untouched control
+4. Use Policy Analyzer to compare hardened against control, and commit the output
+
+**Two clients exist for this.** A single machine only lets you assert that a
+baseline was applied. A hardened machine beside an untouched one makes the
+comparison evidence.
+
+**The interesting part is what breaks.** A baseline applied wholesale to a lab will
+disable something needed. Which setting broke what, and the reasoning for each
+exception, is the actual content of this phase.
+
+**Exit criteria.** Baseline applied to CL01, Policy Analyzer output committed, and
+every deviation recorded in `decisions.md` with a reason.
+
+---
+
+## Phase 6. Windows LAPS, both backends: Pending
+
+**Goal.** Remove the shared local administrator password, and demonstrate the two
+LAPS storage modes side by side. This is where the two halves of the lab meet.
+
+A hybrid-joined device can back its password up to **either** Active Directory
+**or** Entra ID, not both. With two clients we do one of each:
+
+| Client | Backup directory | Retrieved with |
+|---|---|---|
+| CL01 | Active Directory | `Get-LapsADPassword` |
+| CL02 | Microsoft Entra ID | Entra admin center or Graph |
+
+Both policies are delivered by **Group Policy**, built in Phase 4. Intune is not
+required and is not used.
+
+1. Extend the schema: `Update-LapsADSchema`, a one-time forest operation
+2. Grant devices permission to write their own password:
+   `Set-LapsADComputerSelfPermission -Identity "OU=Workstations,OU=Sync,DC=sindredg,DC=local"`
+3. Enable LAPS in the tenant: Entra admin center, Devices, Device settings
+4. Configure two LAPS GPOs differing only in `BackupDirectory`
+5. Retrieve a password from each backend and confirm rotation
+6. Enable DSRM password management on DC01
+
+The forest is at Windows2016 functional level with a Server 2022 domain
+controller, which is the configuration where AD-side password **encryption** and
+**DSRM account management** both work. On an older domain neither is available.
+
+**Licensing.** The LAPS feature is free. AD backup needs nothing. Entra ID backup
+needs Entra ID Free, which every tenant has.
+
+**Exit criteria.** Both clients have machine-specific rotating passwords, one
+stored encrypted in AD and one in Entra ID, each retrievable only by an authorised
+principal. The shared-credential entry in `risk-and-limitations.md` closes.
+
+---
+
+## Phase 7. Tiered administration: Stretch
+
+**Goal.** Stop using one Domain Admin account for everything, which is the other
+weakness the risk register names.
+
+1. Tier 0 / Tier 1 / Tier 2 OU structure with separate admin accounts
+2. Deny logon rights across tiers via User Rights Assignment in GPO
+3. Restricted Groups to control local administrator membership on the clients
+4. Prove the boundary by attempting a cross-tier logon and having it refused
+
+**Exit criteria.** A documented, tested failure: a lower-tier account denied access
+to a higher-tier machine, with the event log entry to show it.
+
+Marked stretch because Phases 2 to 6 already tell a complete story. This is the
+phase to drop if the lab has gone on long enough.
+
+---
+
+## Where the lab stops
+
+Conditional Access is the natural next step after hybrid join: require a
+hybrid-joined device for admin access, and the two halves of this lab become one
+control. It needs Entra ID P1, which is unobtainable here, so the lab stops at the
+capability boundary rather than pretending past it.
+
+That boundary is worth stating plainly in a portfolio. Knowing exactly which
+feature needs which licence, and designing to what you actually have, is a more
+useful signal than a lab that quietly assumes an E5 tenant.
 
 ---
 
 ## Notes
 
-**Cost control.** Auto-shutdown stops the VMs daily and does not restart them,
-which is the point. CL01 stays off until Phase 3. Bastion is the free Developer
-SKU. `terraform destroy` removes everything.
+**Cost control.** Auto-shutdown stops the VMs daily and does not restart them.
+Bastion is gated behind `enable_bastion` and bills hourly while it exists.
+`terraform destroy` removes everything.
 
-**Evidence.** Each phase should leave something a reader can check: a screenshot,
-`dsregcmd` output, a sign-in log extract. The lab is not the deliverable, the
+**Evidence.** Each phase should leave something a reader can check: a synced user
+in Entra, `dsregcmd /status`, `gpresult` output, a Policy Analyzer comparison, a
+retrieved LAPS password from each backend. The lab is not the deliverable, the
 evidence that it works is.
 
 **Known gaps.** State is local, unlocked and unversioned, and holds the admin
-password in plaintext. Acceptable for a single-operator prototype, recorded here
-rather than pretended away. An `azurerm` backend is the fix if this ever becomes
-shared.
+password in plaintext. Recorded in `docs/risk-and-limitations.md` rather than
+pretended away.

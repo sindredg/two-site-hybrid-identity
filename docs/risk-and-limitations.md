@@ -41,12 +41,16 @@ clone.
 
 ## 3. One password across every VM
 
-The same local administrator credential is used on DC01, CS01 and CL01, and
-becomes the Domain Admin password after promotion. Convenient for a lab, and
-exactly the flat-credential pattern that hybrid identity work is supposed to
-argue against.
+The same local administrator credential is used on every machine, and becomes the
+Domain Admin password after promotion. Convenient for a lab, and
+exactly the flat-credential pattern that endpoint hardening exists to argue
+against.
 
-Out of scope here. Worth naming, because a reader will notice.
+**No longer out of scope.** Phase 5 deploys Windows LAPS, which gives every
+machine its own rotating local administrator password stored encrypted in Active
+Directory. Phase 6 splits the single Domain Admin account into a tiered model.
+This entry stays open until both are done, and closing it is the point of those
+phases rather than a side effect.
 
 ---
 
@@ -78,9 +82,11 @@ Security defaults were disabled in this tenant during an earlier project to
 unblock Azure CLI authentication. An identity lab whose own tenant runs without
 MFA undercuts the exercise.
 
-**Intended fix:** replace with a Conditional Access policy in Phase 4, once P1 is
-available, and re-enable MFA for the administrator account. Tracked as an open
-item rather than closed.
+**Intended fix:** replacing security defaults with an equivalent Conditional Access
+policy is the textbook answer and is not reachable here, since that needs P1. The
+remaining honest options are to re-enable security defaults and accept the MFA
+prompt on the Azure CLI, or to leave them off and say so plainly, which is what
+this entry does. Tracked as open rather than closed.
 
 ---
 
@@ -91,6 +97,6 @@ outbound access, confirmed by `defaultOutboundAccess: true` on the subnet. That
 address is Azure-owned, can change, and Microsoft is moving new virtual networks
 to private-by-default.
 
-If this VNet is ever rebuilt, outbound may need an explicit NAT Gateway. Entra
-Connect cannot reach Entra ID without it, so the failure would be total rather
-than partial.
+If this VNet is ever rebuilt, outbound may need an explicit NAT Gateway. Windows
+Update, the Security Compliance Toolkit download, and activation all depend on it,
+so the failure would be broad rather than subtle.

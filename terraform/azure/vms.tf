@@ -20,6 +20,14 @@ locals {
       create     = true
     }
 
+    # CS01, Connect Server. Runs Entra Connect Sync and the management tooling
+    # alongside it: GPMC, RSAT, Security Compliance Toolkit. Managing the
+    # directory from a member server rather than from the domain controller is
+    # the habit worth building.
+    #
+    # Briefly renamed MGMT01 while Entra was out of scope, then reverted. The map
+    # key is the VM name, so a rename replaces the VM, its NIC, its disk and its
+    # shutdown schedule - not worth it for a name that is accurate again.
     CS01 = {
       size       = "Standard_B2ls_v2"   # 2 vCPU, 4 GB
       image_sku  = "2022-datacenter-g2" # Desktop Experience, Gen2
@@ -27,10 +35,21 @@ locals {
       create     = true
     }
 
+    # Two clients, not one. Phase 5 applies a security baseline to CL01 and leaves
+    # CL02 untouched as a control, so Policy Analyzer has something to compare
+    # against. Phase 6 then points each at a different LAPS backend: CL01 to
+    # Active Directory, CL02 to Entra ID.
     CL01 = {
       size       = "Standard_B2ls_v2" # 2 vCPU, 4 GB
       image_sku  = "2022-datacenter-g2"
       private_ip = "10.10.1.6"
+      create     = var.enable_client
+    }
+
+    CL02 = {
+      size       = "Standard_B2ls_v2"
+      image_sku  = "2022-datacenter-g2"
+      private_ip = "10.10.1.7"
       create     = var.enable_client
     }
   }
@@ -40,8 +59,8 @@ locals {
 
 # No public IPs. Access is via Azure Bastion (see network.tf), so nothing in this
 # lab is reachable from the internet. The VMs keep outbound internet through the
-# subnet's default outbound access, which is what Entra Connect needs to reach
-# Entra ID - verified with:
+# subnet's default outbound access, which is what Windows Update and the Security
+# Compliance Toolkit download need - verified with:
 #   az network vnet subnet show ... --query defaultOutboundAccess   (-> true)
 
 resource "azurerm_network_interface" "vm" {

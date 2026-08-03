@@ -108,7 +108,7 @@ terraform output bastion_connect_urls
 ```
 
 Open one in a browser, choose Bastion, enter the credentials. Basic SKU supports
-concurrent sessions, so DC01 and CS01 can both be open at once.
+concurrent sessions, so more than one machine can be open at once.
 
 ---
 

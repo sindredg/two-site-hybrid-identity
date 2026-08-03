@@ -12,9 +12,9 @@ No single tool covers all three layers well.
 | Layer | Tool | Reasoning |
 |---|---|---|
 | Azure infrastructure | Terraform `azurerm` | Declarative, diffable, destroys cleanly |
-| On-prem AD: forest, OUs, users, groups | PowerShell | Terraform cannot promote a forest at all |
-| Entra ID objects and Conditional Access | Terraform `azuread` | Report-only policy state is supported, so policies ship without risking lockout |
-| Entra Connect Sync install | Wizard, documented | Not meaningfully codeable |
+| Forest, OUs, users, groups | PowerShell | Terraform cannot promote a forest at all |
+| Endpoint configuration | Group Policy, backed up to XML | The native mechanism. `Backup-GPO` puts the estate in the repo rather than only in SYSVOL |
+| Security baselines | Microsoft Security Compliance Toolkit | Microsoft ships these as GPO backups, not as code. Imported, then measured with Policy Analyzer |
 
 **Rejected: `hashicorp/ad` for the directory layer.** Version 0.5.0, last
 published March 2024, effectively dormant. It also needs WinRM reachability to
@@ -27,19 +27,25 @@ making the scripts idempotent, so re-running is the drift check.
 
 ---
 
-## 2. Two Terraform roots, not one
+## 2. One Terraform root, under `terraform/azure/`
 
-`terraform/azure/` and `terraform/entra/` have separate state.
+The layout originally had two roots, `terraform/azure/` and `terraform/entra/`,
+kept separate on blast-radius grounds: a bad Conditional Access apply can lock
+every administrator out of a tenant, and that plan should never be able to rebuild
+a domain controller as well.
 
-| Reason | Detail |
-|---|---|
-| Blast radius | A bad Conditional Access apply can lock every admin out of the tenant. That plan must never be entangled with "also rebuild a domain controller" |
-| Credentials | `azurerm` authenticates to ARM, `azuread` to Graph. Different permissions |
-| Change cadence | Infrastructure is stable once built. CA policies get iterated constantly |
-| Rollback | Separate state means reverting a policy cannot touch the VMs |
+That reasoning was sound but the root was empty. The Entra layer here is Connect
+Sync and hybrid join, both configured by a wizard on a member server rather than by
+Terraform, and the Conditional Access that would have justified a separate state
+file is out of scope on licensing grounds. A root holding nothing is worse than no
+root, so it was removed.
 
-**Given up.** Outputs cannot be referenced directly across roots. Any value both
-need has to be passed as a variable or looked up with a data source.
+The nesting under `terraform/azure/` stays, because a second root remains plausible
+later and moving a Terraform root once state exists is more disruptive than leaving
+a directory in place.
+
+**Given up.** Nothing currently. The principle is worth retaining: separate state
+for anything whose worst-case failure differs from the rest of the stack.
 
 ---
 
@@ -130,9 +136,120 @@ added to prove it.
 regardless. `03-prep-sync.ps1` adds the onmicrosoft domain as an alternative UPN
 suffix in the forest and retargets the seed users onto it before sync.
 
-That split is not a workaround to hide. It is precisely the state a real
-`.local`-era environment is in before its first sync, so the lab demonstrates the
-same remediation a migration would need.
+That split is precisely the state a real `.local`-era environment is in before its
+first sync, so the lab demonstrates the same remediation a migration would need.
+
+---
+
+## 8. The lab stops at the licence wall, not before it
+
+Entra ID P1 and P2 are unobtainable for this tenant. The instinct was to drop
+Microsoft Entra ID from the project entirely. Checking what actually needs a
+licence showed that was wider than necessary:
+
+| Capability | Licence | Available here |
+|---|---|---|
+| Entra Connect Sync, PHS, OU filtering | None | Yes |
+| Hybrid Entra join | None | Yes |
+| Seamless SSO | None | Yes |
+| Windows LAPS, backup to Active Directory | None | Yes |
+| Windows LAPS, backup to Entra ID | Entra ID Free | Yes |
+| Conditional Access | P1 | No |
+| PIM, access reviews, Identity Protection | P2 | No |
+| Password writeback, group writeback, Connect Health | P1 | No |
+
+So the wall sits between hybrid join and Conditional Access, not before
+synchronisation. The lab runs right up to it and stops.
+
+**Rejected: dropping Entra entirely.** Considered, and briefly implemented. It
+would have discarded the two phases that make this project different from a
+generic Windows Server lab, for no licensing reason.
+
+**Rejected: buying a single P1 licence.** At roughly $6 per user per month this was
+affordable and Conditional Access would have survived. Not pursued because no paid
+licences were available for this tenant at all.
+
+**Rejected: writing Conditional Access policies without applying them.** Terraform
+that is never planned or applied is unverifiable. The whole argument for
+policy-as-code is that it is testable.
+
+**Given up.** The device-based Conditional Access that would have tied hybrid join
+to an access decision. That is the natural next step and it is named in `PLAN.md`
+as where the lab stops, rather than omitted.
+
+Stating exactly which feature needs which licence, and designing to what is
+actually available, is a more useful signal than a lab that quietly assumes an E5
+tenant.
+
+---
+
+## 9. Entra Connect Sync, not Cloud Sync
+
+Microsoft recommends Cloud Sync for new deployments and describes it as the
+eventual replacement for Connect Sync. We are using Connect Sync anyway.
+
+**Reason: Cloud Sync cannot do hybrid Entra join.** From Microsoft's comparison,
+Device Synchronization is supported in Connect Sync and not in Cloud Sync, with the
+note "Connect supports Hybrid Azure AD Join; not currently supported in Cloud Sync".
+
+| Capability | Connect Sync | Cloud Sync |
+|---|---|---|
+| Users, groups, contacts | Yes | Yes |
+| Password hash sync | Yes | Yes |
+| OU-based filtering | Yes | Yes |
+| **Device synchronization** | **Yes** | **No** |
+| **Hybrid Entra join** | **Yes** | **No** |
+| Disconnected forests | No | Yes |
+| Cloud-managed config | No | Yes |
+
+**Given up.** An on-premises server that is a single point of failure, config that
+lives on that server rather than in the cloud, and a product line Microsoft is
+steering away from. All acceptable: the lab has one forest, one sync server, and a
+hard requirement Cloud Sync cannot meet.
+
+---
+
+## 10. Password Hash Sync, not Pass-through Authentication
+
+**Reason.** PHS keeps authentication working if the on-premises environment is
+unavailable, which for a lab whose domain controller is deallocated most of the
+time is not hypothetical. It needs no additional agents.
+
+**Given up.** Password hashes leave the on-premises boundary, as a hash of a hash
+rather than the password or the original hash. For an organisation whose policy
+forbids that, PTA or federation is the answer, and the trade-off should be stated
+rather than assumed.
+
+---
+
+## 11. Four machines, and CS01 keeps its name
+
+**Two clients, not one.** Phase 5 applies a security baseline to CL01 and leaves
+CL02 untouched as a control, so Policy Analyzer has something to compare against.
+Phase 6 then points each at a different LAPS backend, one to Active Directory and
+one to Entra ID, demonstrating both storage modes in one environment. A second
+client is the cheapest way to turn an assertion into a comparison.
+
+**Rejected: renaming CS01 to MGMT01.** Proposed and briefly implemented while
+Microsoft Entra ID was out of scope, when the machine's only remaining job was
+management tooling and "Connect Server" described nothing.
+
+Reverted once sync came back into scope, for three reasons. The name is accurate
+again: CS01 runs Entra Connect Sync, and running the management tooling alongside
+it is what a real Connect server usually does. The map key is the VM name, so a
+rename replaces the VM, its NIC, its disk and its shutdown schedule, and orphans
+the computer object in Active Directory. And every Phase 1 screenshot shows CS01,
+so a rename would put the evidence permanently out of step with the environment.
+
+The general point is worth keeping: rename while a machine is empty or not at all,
+and weigh a better name against the cost of invalidating your own evidence.
+
+**Managing from CS01, not the DC.** Logging into a domain controller to run tooling
+is the habit that makes a tiered administration model meaningless before it starts.
+
+**Given up.** A fourth VM's standing disk cost, and a fifth that would have been a
+dedicated privileged-access workstation for Phase 7. CS01 plays the Tier 1 box
+instead.
 
 ---
 
@@ -140,5 +257,10 @@ same remediation a migration would need.
 
 | Decision | Phase | Notes |
 |---|---|---|
-| Password Hash Sync over Pass-through Authentication | 2 | PHS is simpler and survives an on-prem outage. Record the reasoning when chosen |
-| Sync filtering scope | 2 | The `Sync` and `NoSync` OU split exists so scoping is demonstrable. Syncing everything would work and prove nothing |
+| Whether computer objects sync | 3 | Hybrid join needs them. They are already inside `OU=Sync`, but the Connect Sync scope has to include them explicitly and excluding them fails in a way that is hard to diagnose |
+| GPO naming and linking convention | 4 | OU linking is simpler to reason about; security-group filtering scales better and is harder to audit |
+| How far to take the security baseline | 5 | Applying Microsoft's baseline wholesale will break something. The exceptions and their reasons belong here as they are decided |
+| Which LAPS backend for which client | 6 | Currently CL01 to Active Directory, CL02 to Entra ID. Worth confirming once both are hybrid-joined, since a device can use one or the other but not both |
+| Who can decrypt LAPS passwords | 6 | The forest supports encryption. Which group holds decryption rights is the actual security decision, not whether to enable it |
+| Whether Phase 7 happens at all | 7 | Marked stretch. Phases 2 to 6 already tell a complete story |
+
