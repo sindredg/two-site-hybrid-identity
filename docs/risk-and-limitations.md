@@ -65,28 +65,69 @@ phases rather than a side effect.
 
 ---
 
-## 4. No CI, no review gate
+## 4. CI checks syntax, nothing reviews intent
 
-Every apply is local and manual. Nothing enforces `fmt`, `validate`, a policy
-check, or a second pair of eyes before infrastructure changes.
+`.github/workflows/terraform.yml` runs on every push and pull request:
 
-For a solo lab this is proportionate. The honest version is that the plan output
-in the terminal is the only review this code gets.
+| Check | Scope |
+|---|---|
+| `terraform fmt -check -recursive` | Repo root, so both roots and the shared module |
+| `terraform validate` | Each root separately, as a matrix |
+
+That catches formatting drift, syntax errors, bad references and type mismatches
+before they land. It is a real gate and it did not exist before.
+
+**What it still does not do.** No `plan`, so nothing reviews what a change would
+actually do to live infrastructure. No policy check. No second pair of eyes on an
+apply.
+
+**The missing `plan` is a deliberate trade, not an oversight.** Running one in CI
+needs Azure credentials stored as repository secrets. For a lab whose state already
+holds a plaintext administrator password, adding cloud credentials to GitHub buys a
+marginal review gain for a real increase in blast radius. The honest position is
+that every apply is still local, manual, and reviewed only by whoever is reading
+the terminal.
+
+Outside a prototype the answer is a service principal scoped to one subscription,
+OIDC federation rather than a stored secret, and `plan` posted to the pull request
+for review before a gated apply.
 
 ---
 
-## 5. The provider lock file covers one platform
+## 5. The provider lock file, checked and not a problem
 
-`.terraform.lock.hcl` was generated on `linux_arm64` and records hashes for that
-platform only. A clone on another OS fails `init` with a checksum error rather
-than a missing-package error, which reads as a different problem.
+**This entry was wrong and is kept as a correction rather than deleted.**
 
-**Both roots have this**, since `terraform/azure-denmarkeast/branch/` generated its own lock file the
-same way. Run it in each:
+It previously claimed `.terraform.lock.hcl` recorded hashes for `linux_arm64` only,
+and that a clone on any other OS would fail `init` with a checksum error.
+
+Both lock files hold one `h1:` hash and **twelve `zh:` hashes**. Those two kinds are
+not the same thing:
+
+| Hash | What it covers |
+|---|---|
+| `h1:` | A directory hash of the extracted package, for the one platform installed locally |
+| `zh:` | The registry-signed zip hash, one per platform the provider publishes |
+
+Twelve `zh:` entries means every published platform can be verified on download, so
+a clone on Windows or amd64 Linux initialises normally.
+
+Confirmed rather than assumed. Running the fix the old entry recommended:
 
 ```bash
 terraform providers lock -platform=linux_arm64 -platform=linux_amd64 -platform=windows_amd64
 ```
+
+reported `Terraform has validated the lock file and found no need for changes` in
+both roots, which is Terraform stating directly that nothing was missing.
+
+**Where the original advice does apply.** A lock file built from a local filesystem
+mirror carries `h1:` hashes only, with no `zh:` entries, and then the platform
+problem is real. Built from the public registry, as these were, coverage is
+automatic.
+
+The CI added in entry 4 now proves this on every push: the runner is `linux_amd64`
+and initialises from these lock files without complaint.
 
 ---
 

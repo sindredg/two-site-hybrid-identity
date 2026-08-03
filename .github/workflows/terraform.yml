@@ -1,0 +1,53 @@
+name: terraform
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # Pinned to the version used locally. A runner on a different minor version can
+  # format differently, which turns fmt -check into a false failure.
+  TF_VERSION: "1.15.8"
+
+jobs:
+  # Runs once at the repo root. -recursive covers both roots and the shared
+  # module in a single pass.
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+      - run: terraform fmt -check -recursive -diff
+
+  # One matrix entry per root. A module has no state and is validated through
+  # the root that calls it, so it is not listed here.
+  validate:
+    runs-on: ubuntu-latest
+    strategy:
+      # Report both roots rather than hiding the second when the first fails.
+      fail-fast: false
+      matrix:
+        root:
+          - terraform/azure
+          - terraform/azure-denmarkeast/branch
+    defaults:
+      run:
+        working-directory: ${{ matrix.root }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+      # -backend=false resolves providers and modules without touching state,
+      # so no Azure credentials are needed anywhere in this workflow.
+      - run: terraform init -backend=false -input=false
+      - run: terraform validate -no-color

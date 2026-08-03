@@ -129,6 +129,7 @@ Deliberately not used:
 
 | Path | Contents |
 |---|---|
+| `.github/workflows/` | CI: `terraform fmt` and `validate` on every push, no credentials needed |
 | `terraform/azure/` | HQ root: network, DC01, CS01, Bastion |
 | `terraform/azure-denmarkeast/branch/` | Branch root: its own resource group, network, both peering objects, the clients |
 | `terraform/modules/windows-vm/` | One VM plus the NIC, disk and shutdown schedule that travel with it |
