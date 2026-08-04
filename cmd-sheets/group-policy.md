@@ -177,17 +177,14 @@ Get-NetFirewallRule -PolicyStore ActiveStore -DisplayName "Allow ICMPv4-In (lab)
 Get-WinEvent -LogName "Microsoft-Windows-GroupPolicy/Operational" -MaxEvents 20
 ```
 
-## Backup and restore
+**Remote RSoP needs more than ICMP.** It reaches the target over RPC and WMI, so a
+client firewall that only permits ping returns `The RPC server is unavailable`.
+Isolate it before opening anything:
 
 ```powershell
-Backup-GPO -All -Path C:\gpo-backup -Domain sindredg.local
+Test-NetConnection CL01 -Port 135
 ```
 
-One GUID-named folder per GPO plus `manifest.xml`, which maps GUIDs back to names.
-
-```powershell
-Import-GPO -BackupGpoName "Workstation-Baseline" -Path C:\gpo-backup -TargetName "ZZ-RestoreTest" -CreateIfNeeded
-```
-
-**`Backup-GPO` captures contents but not links.** A link is an attribute on the OU,
-not part of the GPO, so a full restore is `Import-GPO` followed by `New-GPLink`.
+Logging mode also cannot report on a user who has never signed in to that computer.
+For a combination that has not happened, use GPMC's Group Policy Modeling node,
+which simulates rather than reads.

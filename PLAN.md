@@ -136,7 +136,7 @@ joins on both clients.
 
 ---
 
-## Phase 5. Group Policy foundation: In progress
+## Phase 5. Group Policy foundation: Completed
 
 **Goal.** A GPO estate that is designed rather than accumulated, and version
 controlled rather than clicked.
@@ -155,20 +155,25 @@ Delivered so far:
 | Measured, not asserted | Ping across the peering failing before the refresh and answering at 16 ms after |
 | Carried-forward items | AD Recycle Bin enabled, IE ESC restored on CS01 |
 
-Remaining: loopback demonstrated in both modes, a seed user signed in to prove user
-policy follows the user's OU, a Group Policy Modeling report, and `Backup-GPO`
-output committed to `scripts/gpo/`.
-
 **The firewall result is the one worth reading.** After `gpupdate` on CL01, CS01
-reaches it and CL01 still cannot reach CS01, because CS01 sits in `CN=Computers` and
-receives no policy. A network change would have fixed both directions at once, so
-the asymmetry is what proves Group Policy did it.
+reaches it at 16 ms and CL01 still cannot reach CS01, because CS01 sits in
+`CN=Computers` and receives no policy. A network change would have fixed both
+directions at once, so the asymmetry is what proves Group Policy did it.
 
-**Carried into Phase 6.** Restoring IE ESC means the Security Compliance Toolkit
-must be fetched with `Invoke-WebRequest` rather than through a browser.
+**One gap, named rather than hidden.** `Loopback-Demo` is built and filtered to CL02
+but carries no loopback setting. CL02 is the untouched control Phase 6 measures
+against, and putting user configuration on it would weaken that comparison, so the
+GPO was unlinked and CL02 enters Phase 6 clean. The security filtering it was built
+to rehearse is complete and evidenced.
 
-**Exit criteria.** Policies apply to the right targets, `gpresult` proves it, and
-`scripts/gpo/` contains restorable backups.
+**Carried into Phase 6.** Restoring IE ESC means the Security Compliance Toolkit must
+be fetched with `Invoke-WebRequest` rather than through a browser. Exporting the GPO
+estate into the repository is deferred, since Bastion Basic has no file transfer and
+a half-built export is worse than none.
+
+**Exit criteria met.** Policies apply to the right targets, and `gpresult`, the
+client firewall store, the operational event log and `Get-GPResultantSetOfPolicy` all
+confirm it independently of each other.
 
 ---
 

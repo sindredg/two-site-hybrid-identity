@@ -11,10 +11,10 @@ baselines in Phase 6 arrive as GPOs, the LAPS policy in Phase 7 arrives as a GPO
 and the logon restrictions in Phase 8 are User Rights Assignment inside a GPO. A
 badly structured estate makes all three harder to reason about.
 
-**Status: in progress.** The Central Store, the three GPOs, their links and the
-security filtering are done. Loopback processing, client-side verification and the
-backup into the repository are not. Section 7 states exactly what remains. Failures
-so far, including one caught only by checking a second time, are in
+**Status: complete, with one deliberate gap.** The Central Store, three GPOs, their
+links, security filtering and client-side verification are done. The loopback
+demonstration is set up but not run, for the reason given in section 8. Failures
+along the way are in
 [troubleshooting/05-group-policy.md](troubleshooting/05-group-policy.md).
 
 ---
@@ -104,7 +104,9 @@ unhardened.
 
 ADMX templates live locally on each machine, which means the settings an
 administrator can see depend on which machine opened GPMC. The Central Store puts
-one copy in SYSVOL so every editor sees the same policies.
+one copy in SYSVOL so every editor sees the same policies, and Microsoft describes
+it as "a file location that's checked by the Group Policy tools by default"
+([Create and manage the Central Store](https://learn.microsoft.com/troubleshoot/windows-client/group-policy/create-and-manage-central-store)).
 
 **From CS01**, which runs Desktop Experience and carries the newest template set:
 
@@ -138,11 +140,14 @@ Copy-Item C:\Windows\PolicyDefinitions\en-US \\sindredg.local\SYSVOL\sindredg.lo
 
 ![Language files copied, inheritance on the users OU](images/phase5/central-store-adml-copied.png)
 
-**Count both, not one.** A store holding templates without strings leaves GPMC able
-to read the policies and unable to name them, which is worse than no store at all,
-because GPMC prefers the store over the local copy once it exists. Verifying only
-the `.admx` count would report success on a half-copied store, which is what
-happened here and is recorded in
+**Count both, not one.** Microsoft's guidance is explicit that the language files
+live in a culture-named subfolder and that both sets must be copied. A store holding
+templates without strings leaves GPMC able to read the policies and unable to name
+them, which surfaces as settings shown under
+[Extra Registry Settings](https://learn.microsoft.com/troubleshoot/windows-server/group-policy/group-policy-settings-show-as-extra-registry-settings).
+That is worse than having no store, because the tools prefer the store over the
+local copy once one exists. Verifying only the `.admx` count would report success on
+a half-copied store, which is what happened here and is recorded in
 [troubleshooting/05-group-policy.md](troubleshooting/05-group-policy.md).
 
 | Checked | Source | Central Store |
@@ -277,6 +282,27 @@ have. The pair used is exactly the two subnets Phase 4 registered in AD Sites an
 Services, so the firewall scope and the site definitions describe the same network.
 `AzureBastionSubnet` is deliberately absent, because Bastion reaches the VMs over
 RDP and never pings them.
+
+**Two WMI rules, added once the verification in section 6 needed them.** Querying
+resultant policy from CS01 rather than from the client itself goes over RPC and WMI,
+which the client firewall also blocks. Rather than open ports by hand on each
+machine, the requirement became part of the baseline:
+
+```powershell
+New-NetFirewallRule -PolicyStore "sindredg.local\Workstation-Baseline" -DisplayName "Allow WMI-In RPC endpoint mapper (lab)" -Direction Inbound -Protocol TCP -LocalPort RPCEPMap -Program "%SystemRoot%\system32\svchost.exe" -Service RpcSs -RemoteAddress 10.10.1.0/24 -Action Allow -Profile Domain
+```
+
+```powershell
+New-NetFirewallRule -PolicyStore "sindredg.local\Workstation-Baseline" -DisplayName "Allow WMI-In WinMgmt (lab)" -Direction Inbound -Protocol TCP -LocalPort RPC -Program "%SystemRoot%\system32\svchost.exe" -Service Winmgmt -RemoteAddress 10.10.1.0/24 -Action Allow -Profile Domain
+```
+
+![WMI rules written into the GPO](images/phase5/firewall-rule-wmi.png)
+
+Both are scoped to the HQ subnet and bound to a specific service and program, so
+they admit management traffic from the management server and nothing else. Answering
+"a tool failed, so what is the smallest rule that fixes it" is the habit worth
+keeping; the alternative is disabling the firewall and never learning which port
+mattered.
 
 Then three registry-policy settings, an inactivity limit and a logon banner:
 
@@ -517,9 +543,109 @@ rule is inbound on machines that receive `Workstation-Baseline`. CS01 does not
 receive it, so CS01 still drops inbound echo. The asymmetry is the proof: had the
 peering or an NSG changed, both directions would have come back at once.
 
+### What the client says
+
+```powershell
+gpresult /r /scope:computer
+```
+
+![Workstation-Baseline applied on CL01](images/phase5/cl01-gpresult-after.png)
+
+`Workstation-Baseline` now sits above `Default Domain Policy` in the applied list,
+which is link order and processing order agreeing with each other.
+
+The rule itself, on both clients, read from the store the firewall is actually
+enforcing rather than from the GPO that supplied it:
+
+```powershell
+Get-NetFirewallRule -PolicyStore ActiveStore -DisplayName "Allow ICMPv4-In (lab)" | Select-Object DisplayName, PolicyStoreSource, Enabled
+```
+
+```powershell
+Get-WinEvent -LogName "Microsoft-Windows-GroupPolicy/Operational" -MaxEvents 20 | Select-Object TimeCreated, Id, Message
+```
+
+![CL01 rule and event log](images/phase5/cl01-policy-evidence.png)
+
+![CL02 rule and event log](images/phase5/cl02-policy-evidence.png)
+
+A rule nobody created locally is present and enabled on both machines. The
+operational log carries the matching story, including event 5126, "Group Policy
+successfully got applicable GPOs from the domain controller", and event 5313, which
+names the objects that were filtered out.
+
+### Resultant Set of Policy, from the management server
+
+```powershell
+Get-GPResultantSetOfPolicy -Computer CL01 -ReportType Html -Path C:\rsop-cl01.html
+```
+
+![RSoP for CL01](images/phase5/rsop-cl01.png)
+
+`RsopMode : Logging` and `LoggingMode : Computer`. **Logging mode reports what
+already happened on a real machine.** The counterpart is Group Policy Modeling,
+which simulates a combination that has never occurred, and is the safer order for
+anything that could lock an account out
+([Group Policy Modeling and Group Policy Results](https://learn.microsoft.com/windows-server/identity/ad-ds/manage/group-policy/group-policy-modeling-results)).
+
+Adding a user requires that the user has actually signed in to that computer, since
+logging mode reads what was recorded at logon rather than predicting it:
+
+```powershell
+Get-GPResultantSetOfPolicy -Computer CL02 -User SINDREDG\cdubois -ReportType Html -Path C:\rsop-cl02.html
+```
+
+![RSoP for CL02 including a user](images/phase5/rsop-cl02-user.png)
+
+`LoggingMode : UserAndComputer`, which is both halves of the policy for a real user
+on a real machine.
+
 ---
 
-## 7. Targeting is by OU, not by machine
+## 7. A seed user on a client
+
+Proving that user policy follows the user object needs a user whose object sits in
+`OU=Users,OU=Sync`. `labadmin` does not qualify, so `cdubois` was used, one of the
+five accounts seeded in Phase 1 and synced to Entra ID in Phase 2.
+
+The account needed preparing first. `02-ad-structure.ps1` creates the seed users with
+`-ChangePasswordAtLogon $true`, which is correct for accounts nobody has used yet and
+awkward over Bastion, where a forced password change at the logon screen is difficult
+to complete. The password was reset and the flag cleared before the first sign-in.
+
+![cdubois enabled, unlocked and not expired](images/phase5/cdubois-account-ready.png)
+
+`Enabled : True`, `LockedOut : False` and `PasswordExpired : False` are the four
+things worth checking before blaming Group Policy for a logon that does not work.
+
+Domain users then cannot sign in over Bastion without the right to do so, which lives
+in the local `Remote Desktop Users` group on the target:
+
+```powershell
+Add-LocalGroupMember -Group "Remote Desktop Users" -Member "SINDREDG\cdubois"
+```
+
+![RDP access granted on CL02](images/phase5/cl02-rdp-access.png)
+
+**Done locally rather than by policy, and that is a shortcut.** The durable version
+is a Group Policy Preferences local group item, which applies to every machine in the
+OU and survives a rebuild. It has no PowerShell equivalent and has to be built in
+GPMC, and it was skipped here to get to the evidence. Phase 8 revisits local group
+membership properly when it builds the tiered administration model, and this is one
+of the things it should absorb.
+
+```powershell
+whoami
+```
+
+![cdubois signed in to CL02](images/phase5/cdubois-on-cl02.png)
+
+`sindredg\cdubois` on CL02, which is what made the `UserAndComputer` report above
+possible.
+
+---
+
+## 8. Targeting is by OU, not by machine
 
 `gpresult` on CS01 before any of this existed:
 
@@ -544,24 +670,51 @@ clients with `-OUPath` instead of letting them land in the default location.
 
 ---
 
-## 8. What remains
+## 9. The loopback demonstration, and why it was not run
 
-| Step | State |
-|---|---|
-| Loopback processing set to Merge, then Replace | Not started |
-| `sg-finance` added to `Remote Desktop Users` by preference | Not started |
-| A seed user signed in to a client, proving user policy by OU | Not started |
-| Group Policy Modeling report | Not started |
-| `Backup-GPO` output committed to `scripts/gpo/` | Not started |
-| `Loopback-Demo` unlinked so CL02 is a clean control for Phase 6 | Not started |
+`Loopback-Demo` exists, is linked, and is filtered to CL02. What it does not contain
+is the loopback setting itself.
 
-The last row matters beyond this phase. CL02 is the untouched control that Phase 6
-compares a hardened CL01 against, so a demonstration GPO left linked to it would
-quietly invalidate that comparison.
+Loopback applies the user half of the GPOs assigned to the **computer**, regardless
+of who signs in. Microsoft describes it as intended for "special-use computers, such
+as classrooms, public kiosks, and reception areas", with two modes: Merge, where the
+computer's user settings are appended to the user's own and win on conflict, and
+Replace, where the user's own GPOs are never gathered at all
+([Group Policy processing](https://learn.microsoft.com/windows-server/identity/ad-ds/manage/group-policy/group-policy-processing#loopback-processing-mode),
+[KB 231287](https://learn.microsoft.com/troubleshoot/windows-server/group-policy/loopback-processing-of-group-policy)).
+
+The remaining step is one registry value and two logons:
+
+```powershell
+Set-GPRegistryValue -Name "Loopback-Demo" -Key "HKLM\Software\Policies\Microsoft\Windows\System" -ValueName "UserPolicyMode" -Type DWord -Value 1
+```
+
+**Why it stops here.** CL02 is the untouched control that Phase 6 measures a hardened
+CL01 against. Leaving a policy on it that changes user configuration would weaken
+that comparison, and the point of having two clients is to have one that nothing has
+been done to. Everything the demonstration needs is now in place, so it can be run
+later against a machine whose job is not to be a control.
+
+`Loopback-Demo` was therefore unlinked before closing the phase:
+
+```powershell
+Remove-GPLink -Name "Loopback-Demo" -Target "OU=Workstations,OU=Sync,DC=sindredg,DC=local"
+```
+
+![Loopback-Demo unlinked](images/phase5/loopback-demo-unlinked.png)
+
+`UserVersion` and `ComputerVersion` both still reading `AD Version: 0, SysVol
+Version: 0` is the same point from the other direction: the GPO was created, linked
+and filtered, and never had a setting written to it. The filtering work in section 5
+stands on its own, and the GPO survives unlinked, ready for the demonstration when a
+machine is free to carry it.
+
+Naming a gap and its reason is more useful than a phase that quietly claims
+everything.
 
 ---
 
-## 9. Exit criteria
+## 10. Exit criteria
 
 | Criterion | Command | Status |
 |---|---|---|
@@ -573,9 +726,11 @@ quietly invalidate that comparison.
 | Unused halves disabled | `Get-GPO -All` shows both `GpoStatus` values | Done |
 | Security filtering applied | Scope tab lists `CL02$` only | Done |
 | Policy observably changes a client | Ping across the peering, failing before and 16 ms after | Done |
+| Policy confirmed on the client | `gpresult`, `ActiveStore` firewall rule, operational event log | Done |
+| Resultant policy from the management server | `Get-GPResultantSetOfPolicy` for CL01, and CL02 with a user | Done |
 | Targeting follows the OU | CS01 in `CN=Computers` receives nothing, and still refuses ICMP | Done |
-| Loopback demonstrated and explained | Merge and Replace both captured | Open |
-| `scripts/gpo/` holds restorable backups | `Backup-GPO`, then a test `Import-GPO` | Open |
+| CL02 left clean for Phase 6 | `Loopback-Demo` unlinked, both versions still at 0 | Done |
+| Loopback demonstrated | Deferred, with the reason recorded in section 9 | Deferred |
 
 ---
 

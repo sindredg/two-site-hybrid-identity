@@ -13,7 +13,7 @@ No single tool covers all three layers well.
 |---|---|---|
 | Azure infrastructure | Terraform `azurerm` | Declarative, diffable, destroys cleanly |
 | Forest, OUs, users, groups | PowerShell | Terraform cannot promote a forest at all |
-| Endpoint configuration | Group Policy, backed up to XML | The native mechanism. `Backup-GPO` puts the estate in the repo rather than only in SYSVOL |
+| Endpoint configuration | Group Policy | The native mechanism, and the only one available without Intune |
 | Security baselines | Microsoft Security Compliance Toolkit | Microsoft ships these as GPO backups, not as code. Imported, then measured with Policy Analyzer |
 
 **Rejected: `hashicorp/ad` for the directory layer.** Version 0.5.0, last
@@ -353,18 +353,16 @@ the same reason and rehearses the same step.
 
 **Given up.** The convention does not survive contact with an estate whose OU tree
 is not yours to change. It also means the MS16-072 behaviour has to be understood
-rather than avoided: since that update policy is read in the computer's security
+rather than avoided: since that update, policy is read in the computer's security
 context, so a GPO filtered to a user group still needs `Authenticated Users` or
-`Domain Computers` holding Read, and forgetting it produces a policy that silently
-applies to nobody.
+`Domain Computers` holding Read. `Set-GPPermission` warns about this before it acts
+and cites [KB 3163622](https://support.microsoft.com/help/3163622).
 
-**Authoring is split, and the backup is the artifact.** `New-GPO`,
-`Set-GPRegistryValue`, `New-NetFirewallRule -PolicyStore` and `New-GPLink` cover
-most of the estate. Group Policy Preferences has no supported cmdlet at all, being
-XML in SYSVOL plus a client-side extension registered on the GPO object, so local
-group membership is created in GPMC. That is why the repository commits
-`Backup-GPO` output rather than only the scripts: the scripts cannot express the
-whole estate, and the backup can.
+**What is not scriptable.** `New-GPO`, `Set-GPRegistryValue`,
+`New-NetFirewallRule -PolicyStore` and `New-GPLink` cover most of the estate. Group
+Policy Preferences has no supported cmdlet, being XML in SYSVOL plus a client-side
+extension registered on the GPO object, so anything delivered that way has to be
+built in GPMC. Worth knowing before planning an estate around scripts.
 
 ---
 
@@ -373,7 +371,7 @@ whole estate, and the backup can.
 | Decision | Phase | Notes |
 |---|---|---|
 | How far to take the security baseline | 6 | Applying Microsoft's baseline wholesale will break something. The exceptions and their reasons belong here as they are decided |
-| How GPO backups reach the repository | 5 | Bastion Basic has no file transfer. Current plan is a throwaway storage account and a write-only SAS, deleted afterwards, rather than a standing resource in Terraform |
+| Whether the GPO estate is exported into the repository | 6 | Bastion Basic offers no file transfer, so any export needs a storage account and a SAS. Deferred rather than half-built |
 | Which LAPS backend for which client | 7 | Currently CL01 to Active Directory, CL02 to Entra ID. A device can use one or the other but not both |
 | Who can decrypt LAPS passwords | 7 | The forest supports encryption. Which group holds decryption rights is the actual security decision, not whether to enable it |
 | Whether to fold HQ into the shared VM module | 5 | Needs `moved` blocks against a promoted domain controller. Worth doing only on its own, with nothing else in the plan |
