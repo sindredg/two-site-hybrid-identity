@@ -328,12 +328,52 @@ all now plan-time errors.
 
 ---
 
+## 14. Link at the OU, filter by security only where an OU must diverge
+
+**Decision.** GPOs are linked to the OU that holds their target, and
+`Authenticated Users` is left in place. Security filtering is used in exactly one
+situation: when two objects sit in the same OU and must receive different policy.
+
+Names describe the target rather than the setting, so `Workstation-Baseline` can
+gain settings without the name going stale. The half of a GPO that holds nothing is
+disabled, which stops it being evaluated and states the intent to the next reader.
+
+**Rejected: filtering everything by security group.** It scales better in a large
+estate, where OU structure is often owned by someone else and cannot be reshaped to
+suit policy. It was rejected here because the effective scope of a GPO then lives
+in an access control list rather than in the directory tree, and answering "what
+applies to this machine" stops being something you can read off the OU. In a lab
+whose OU structure was designed alongside the policy, that cost buys nothing.
+
+**Where the exception is forced.** Phase 7 gives CL01 and CL02 different LAPS
+backends while both sit in `OU=Workstations,OU=Sync`. Splitting them into separate
+OUs to avoid filtering would be structure invented to dodge a mechanism rather than
+to describe the organisation. `Loopback-Demo` in Phase 5 filters to CL02 alone for
+the same reason and rehearses the same step.
+
+**Given up.** The convention does not survive contact with an estate whose OU tree
+is not yours to change. It also means the MS16-072 behaviour has to be understood
+rather than avoided: since that update policy is read in the computer's security
+context, so a GPO filtered to a user group still needs `Authenticated Users` or
+`Domain Computers` holding Read, and forgetting it produces a policy that silently
+applies to nobody.
+
+**Authoring is split, and the backup is the artifact.** `New-GPO`,
+`Set-GPRegistryValue`, `New-NetFirewallRule -PolicyStore` and `New-GPLink` cover
+most of the estate. Group Policy Preferences has no supported cmdlet at all, being
+XML in SYSVOL plus a client-side extension registered on the GPO object, so local
+group membership is created in GPMC. That is why the repository commits
+`Backup-GPO` output rather than only the scripts: the scripts cannot express the
+whole estate, and the backup can.
+
+---
+
 ## Pending decisions
 
 | Decision | Phase | Notes |
 |---|---|---|
-| GPO naming and linking convention | 5 | OU linking is simpler to reason about; security-group filtering scales better and is harder to audit |
 | How far to take the security baseline | 6 | Applying Microsoft's baseline wholesale will break something. The exceptions and their reasons belong here as they are decided |
+| How GPO backups reach the repository | 5 | Bastion Basic has no file transfer. Current plan is a throwaway storage account and a write-only SAS, deleted afterwards, rather than a standing resource in Terraform |
 | Which LAPS backend for which client | 7 | Currently CL01 to Active Directory, CL02 to Entra ID. A device can use one or the other but not both |
 | Who can decrypt LAPS passwords | 7 | The forest supports encryption. Which group holds decryption rights is the actual security decision, not whether to enable it |
 | Whether to fold HQ into the shared VM module | 5 | Needs `moved` blocks against a promoted domain controller. Worth doing only on its own, with nothing else in the plan |

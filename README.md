@@ -158,7 +158,7 @@ Phase walkthroughs, with status:
 | [02-entra-connect.md](docs/02-entra-connect.md) | Entra Connect Sync, scoped to one OU | **Completed** |
 | [03-branch-network.md](docs/03-branch-network.md) | Second region, peered branch office | **Completed** |
 | [04-hybrid-join.md](docs/04-hybrid-join.md) | AD sites, domain join, hybrid Entra join | **Completed** |
-| [05-group-policy.md](docs/05-group-policy.md) | Central Store, linked GPOs, backed up to XML | Pending |
+| [05-group-policy.md](docs/05-group-policy.md) | Central Store, linked GPOs, backed up to XML | **In progress** |
 | [06-security-baselines.md](docs/06-security-baselines.md) | Microsoft baselines, hardened against control | Pending |
 | [07-windows-laps.md](docs/07-windows-laps.md) | LAPS to Active Directory and to Entra ID | Pending |
 | [08-tiered-administration.md](docs/08-tiered-administration.md) | Tier 0/1/2 with enforced logon boundaries | Stretch |
@@ -182,7 +182,15 @@ The directory knows it spans two sites. `nltest` from a branch client reports
 `Our Site Name: Branch-DenmarkEast` against `Dc Site Name: HQ-SwedenCentral`, and
 the domain controller answers across the peering at roughly 16 ms.
 
-Phases 5 to 8 are documented ahead of execution and marked pending. See
+**Phase 5 is under way.** The Central Store serves the whole domain, three GPOs are
+linked against the OU structure, and one is filtered to a single client to rehearse
+what Phase 7 needs. Policy is measured rather than asserted: a ping across the
+peering that failed before the refresh answers at 16 ms after, while the same ping
+in the opposite direction still fails, because the management server sits outside
+the OU and receives nothing. Loopback and the backup into `scripts/gpo/` are
+outstanding.
+
+Phases 6 to 8 are documented ahead of execution and marked pending. See
 [PLAN.md](PLAN.md).
 
 ---

@@ -47,6 +47,8 @@ cost a round of "the fix did not work".
 
 **Re-enable it afterwards.** Set the value back to `1`. ESC was disabled for an
 installer, not permanently, and a sync server is not the place to leave it off.
+Done in [Phase 5](../05-group-policy.md), where the same command run on DC01 first
+fails, because Server Core has no Internet Explorer for the setting to apply to.
 
 **Lesson.** The error names the symptom two layers below the cause. Same shape as
 the Group Policy Client hang, where the message named `gpsvc` and the cause was

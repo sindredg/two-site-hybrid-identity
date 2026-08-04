@@ -136,18 +136,36 @@ joins on both clients.
 
 ---
 
-## Phase 5. Group Policy foundation: Pending
+## Phase 5. Group Policy foundation: In progress
 
 **Goal.** A GPO estate that is designed rather than accumulated, and version
 controlled rather than clicked.
 
-1. Create the Group Policy Central Store on DC01 so ADMX templates are consistent
-2. Build linked GPOs against the OU structure: user policy on `OU=Users`, computer
-   policy on `OU=Workstations`
-3. Demonstrate loopback processing, the setting most often misunderstood
-4. Verify with `gpresult /h` and Group Policy Modeling, not by assuming
-5. Back every GPO up to XML with `Backup-GPO` and commit it, so the estate lives in
-   the repo rather than only in SYSVOL
+Walkthrough: [docs/05-group-policy.md](docs/05-group-policy.md).
+
+Delivered so far:
+
+| Item | Detail |
+|---|---|
+| Central Store | 214 templates and 215 language files in SYSVOL, pairing verified, GPMC confirming it reads from the store. `LAPS.admx` present for Phase 7 |
+| Three GPOs | `Workstation-Baseline` and `Loopback-Demo` on `OU=Workstations`, `User-Standard` on `OU=Users` |
+| ICMP by policy | Inbound echo scoped to the two AD Sites subnets, closing an observation open since Phase 3 |
+| Seamless SSO | The intranet zone assignment the feature has needed since Phase 2 |
+| Security filtering | `Loopback-Demo` reduced to CL02 alone, rehearsing what Phase 7 needs |
+| Measured, not asserted | Ping across the peering failing before the refresh and answering at 16 ms after |
+| Carried-forward items | AD Recycle Bin enabled, IE ESC restored on CS01 |
+
+Remaining: loopback demonstrated in both modes, a seed user signed in to prove user
+policy follows the user's OU, a Group Policy Modeling report, and `Backup-GPO`
+output committed to `scripts/gpo/`.
+
+**The firewall result is the one worth reading.** After `gpupdate` on CL01, CS01
+reaches it and CL01 still cannot reach CS01, because CS01 sits in `CN=Computers` and
+receives no policy. A network change would have fixed both directions at once, so
+the asymmetry is what proves Group Policy did it.
+
+**Carried into Phase 6.** Restoring IE ESC means the Security Compliance Toolkit
+must be fetched with `Invoke-WebRequest` rather than through a browser.
 
 **Exit criteria.** Policies apply to the right targets, `gpresult` proves it, and
 `scripts/gpo/` contains restorable backups.

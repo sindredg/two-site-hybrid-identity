@@ -198,23 +198,29 @@ Phase 5 a real Group Policy task, not because this lab needs it. If the rotation
 is not going to happen, the honest options are to accept the risk explicitly or to
 disable the feature.
 
+**The Group Policy half is now delivered.** Phase 5's `User-Standard` carries the
+Site to Zone Assignment List entry that lets a browser send its Kerberos ticket to
+the Entra endpoint, which is what makes Seamless SSO function rather than merely
+exist. The key rotation above stays open and unautomated.
+
 ---
 
-## 9. AD Recycle Bin is not enabled
+## 9. AD Recycle Bin, enabled in Phase 5
 
-Flagged by the Entra Connect wizard on its completion page. Without it, a deleted
-user, group or OU is recoverable only from a system state backup, and this lab has
-no backup at all.
+**Closed.** Flagged by the Entra Connect wizard on its completion page. Without it,
+a deleted user, group or OU was recoverable only from a system state backup, and
+this lab has no backup at all.
 
 ```powershell
 Enable-ADOptionalFeature 'Recycle Bin Feature' -Scope ForestOrConfigurationSet -Target sindredg.local
 ```
 
-**It is irreversible**, which is why it is off by default and why it is worth a
+**It is irreversible**, which is why it is off by default and why it was worth a
 moment's thought rather than a reflex. For a lab where every object was created by
 a script and could be recreated by re-running it, the case is weaker than in
 production. The case *for* enabling it is that Phase 7 extends the schema and
 Phase 8 restructures OUs, and an accidental deletion during either would otherwise
-be unrecoverable.
+be unrecoverable. That decided it.
 
-Carried into Phase 5.
+Evidence and the confirmation prompt are in
+[05-group-policy.md](05-group-policy.md).
