@@ -15,6 +15,7 @@ one to search when something breaks.
 | 3 | [03-branch-network.md](03-branch-network.md) | Three regions, three different reasons a region can be unusable |
 | 4 | [04-hybrid-join.md](04-hybrid-join.md) | A missing module path, and a sync that reported success while syncing nothing new |
 | 5 | [05-group-policy.md](05-group-policy.md) | Four machines and two accounts sharing a name, and a file copy that reported success while copying half |
+| 6 | [06-security-baselines.md](06-security-baselines.md) | A baseline that blocked the tool sent to measure it, and a measurement done another way |
 
 ## Recurring themes
 

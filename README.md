@@ -162,7 +162,7 @@ Phase walkthroughs, with status:
 | [03-branch-network.md](docs/03-branch-network.md) | Second region, peered branch office | **Completed** |
 | [04-hybrid-join.md](docs/04-hybrid-join.md) | AD sites, domain join, hybrid Entra join | **Completed** |
 | [05-group-policy.md](docs/05-group-policy.md) | Central Store, linked GPOs, verified on the clients | **Completed** |
-| [06-security-baselines.md](docs/06-security-baselines.md) | Microsoft baselines, hardened against control | Pending |
+| [06-security-baselines.md](docs/06-security-baselines.md) | Microsoft baselines, hardened against control | **Completed** |
 | [07-windows-laps.md](docs/07-windows-laps.md) | LAPS to Active Directory and to Entra ID | Pending |
 | [08-tiered-administration.md](docs/08-tiered-administration.md) | Tier 0/1/2 with enforced logon boundaries | Stretch |
 
@@ -193,7 +193,13 @@ the opposite direction still fails, because the management server sits outside t
 and receives nothing. The loopback demonstration is deliberately deferred, with the
 reason recorded rather than glossed.
 
-Phases 6 to 8 are documented ahead of execution and marked pending. See
+**Phase 6 is complete.** Microsoft's Server 2022 member server baseline is deployed to
+CL01 and denied on CL02 by security filtering, so the two machines are directly
+comparable. CL01 gains two entire policy categories the control does not have, and it
+stops accepting the shared local administrator account over Bastion, which is the flat
+credential in the risk register being refused by policy rather than by intention.
+
+Phases 7 and 8 are documented ahead of execution and marked pending. See
 [PLAN.md](PLAN.md).
 
 ---

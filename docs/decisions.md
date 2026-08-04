@@ -366,12 +366,66 @@ built in GPMC. Worth knowing before planning an estate around scripts.
 
 ---
 
+## 15. Version-matched baseline, and one exception to it
+
+**Decision.** Apply the Windows Server 2022 baseline to Server 2022 clients, import
+only the Member Server GPO of the eight in the pack, and scope it to CL01 by security
+filtering.
+
+**Rejected: the Server 2025 baseline.** It is the prominent one on the download page
+and would have applied without error. Settings referencing policies that do not exist
+on Server 2022 never take effect, so they would surface as unexplained gaps in the
+comparison. Every finding would then carry an asterisk about whether the setting was
+absent or merely inapplicable.
+
+**Rejected: rebuilding the clients on Server 2025 to match the newer baseline.** The
+Terraform change is one variable. The cost is re-joining and re-hybrid-joining both
+clients, and every Phase 4 and 5 screenshot showing build 20348 becoming wrong. Entry
+11 records the same trade over renaming CS01, and it resolves the same way: weigh a
+better configuration against invalidating your own evidence.
+
+**One exception made, and its boundary.** The baseline sets SmartScreen to warn and
+prevent bypass. On a machine that cannot reach the reputation service it fails closed,
+which blocked Policy Analyzer from running on CL01. The fix was removing Mark of the
+Web from that one binary rather than relaxing the setting.
+
+Turning SmartScreen off would have been faster and wrong twice: the lab would lose a
+control it had just deployed, and CL01 would no longer represent the baseline it was
+being measured against.
+
+**Given up.** The Server 2022 baseline is dated September 2021 and will age out. A
+lab rebuilt later should track the OS, not this decision.
+
+---
+
+## 16. Group Policy Modeling instead of Policy Analyzer
+
+**Decision.** Measure the baseline's effect with Group Policy Modeling reports rather
+than Policy Analyzer exports.
+
+Policy Analyzer is the tool Microsoft ships for this and the one Phase 6 was planned
+around. Three things made it the wrong instrument here: it runs on the endpoint being
+measured rather than centrally, its comparison and export steps are GUI-only with no
+scriptable equivalent, and on the hardened client the baseline blocked it from
+starting.
+
+Modeling runs on the domain controller, needs nothing installed on either client,
+names the winning GPO for every setting, and produces HTML that can be shared without
+Excel.
+
+**Given up.** Policy Analyzer compares against a machine's *effective state*, which
+catches local configuration and drift that modeling does not see, since modeling
+evaluates domain policy only. For a lab where nothing was set locally that difference
+is theoretical. In an estate with real local configuration it would matter, and the
+tool would earn its friction.
+
+---
+
 ## Pending decisions
 
 | Decision | Phase | Notes |
 |---|---|---|
-| How far to take the security baseline | 6 | Applying Microsoft's baseline wholesale will break something. The exceptions and their reasons belong here as they are decided |
-| Whether the GPO estate is exported into the repository | 6 | Bastion Basic offers no file transfer, so any export needs a storage account and a SAS. Deferred rather than half-built |
+| Whether the GPO estate is exported into the repository | 7 | Bastion Basic offers no file transfer, so any export needs a storage account and a SAS. Deferred rather than half-built |
 | Which LAPS backend for which client | 7 | Currently CL01 to Active Directory, CL02 to Entra ID. A device can use one or the other but not both |
 | Who can decrypt LAPS passwords | 7 | The forest supports encryption. Which group holds decryption rights is the actual security decision, not whether to enable it |
 | Whether to fold HQ into the shared VM module | 5 | Needs `moved` blocks against a promoted domain controller. Worth doing only on its own, with nothing else in the plan |

@@ -177,26 +177,41 @@ confirm it independently of each other.
 
 ---
 
-## Phase 6. Security baselines: Pending
+## Phase 6. Security baselines: Completed
 
-**Goal.** Apply Microsoft's own hardening guidance and measure the difference
-rather than trusting it.
+**Goal.** Apply Microsoft's own hardening guidance and measure the difference rather
+than trusting it.
 
-1. Download the Microsoft Security Compliance Toolkit onto CS01
-2. Import the Windows Server 2022 member server baseline as GPOs
-3. Apply it to CL01 and leave CL02 as an untouched control
-4. Use Policy Analyzer to compare hardened against control, and commit the output
+Walkthrough: [docs/06-security-baselines.md](docs/06-security-baselines.md).
 
-**Two clients exist for this.** A single machine only lets you assert that a
-baseline was applied. A hardened machine beside an untouched one makes the
-comparison evidence.
+Delivered:
 
-**The interesting part is what breaks.** A baseline applied wholesale to a lab will
-disable something needed. Which setting broke what, and the reasoning for each
-exception, is the actual content of this phase.
+| Item | Detail |
+|---|---|
+| Version-matched baseline | Server 2022 Member Server GPO, one of the eight in the pack, against Server 2022 clients |
+| Scoped to one endpoint | Security filtering to `CL01$`, link order 1 so the baseline wins on conflict |
+| Predicted before applied | Modeling showed CL01 applied and CL02 denied, before either machine refreshed |
+| Measured, not asserted | User Rights Assignment and Advanced Audit Configuration exist on CL01 and are absent on CL02 |
 
-**Exit criteria.** Baseline applied to CL01, Policy Analyzer output committed, and
-every deviation recorded in `decisions.md` with a reason.
+**The interesting part was what broke.** CL01 no longer accepts the local `labadmin`
+account over Bastion, because the baseline sets `Deny log on through Terminal
+Services` to `Local account` and `Deny access to this computer from the network` to
+`Local account and member of Administrators group`. That is the flat shared credential
+in `risk-and-limitations.md` entry 3 being refused by policy, which is the behaviour
+the baseline is for.
+
+**One prediction was wrong and is recorded as such.** Baseline firewall settings were
+expected to replace the Phase 5 ICMP and WMI rules. They did not. The baseline owns
+the profile while the rules stay owned by `Workstation-Baseline`, so the two merge.
+
+**Policy Analyzer was dropped.** It runs on the endpoint rather than centrally, its
+comparison step is GUI-only, and on the hardened client the baseline blocked it from
+starting. Modeling answered the same question with less friction. Reasoning in
+`decisions.md` entry 16.
+
+**Exit criteria met.** Baseline applied to CL01 and denied on CL02, the difference
+shown in reports that name the winning GPO for every setting, and every deviation
+recorded in `decisions.md`.
 
 ---
 
