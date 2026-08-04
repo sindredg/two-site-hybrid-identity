@@ -19,9 +19,10 @@ exist. Constraints producing better architecture than the plan did is worth
 recording rather than tidying away.
 
 Reproducible by design. The Azure footprint is Terraform, the directory is
-idempotent PowerShell, and the endpoint configuration is Group Policy backed up to
-XML. Nothing is clicked together by hand except the tooling Microsoft ships only as
-a wizard.
+idempotent PowerShell, and the endpoint configuration is Group Policy built from
+scripted cmdlets wherever one exists. Nothing is clicked together by hand except the
+tooling Microsoft ships only as a wizard, and the parts of Group Policy that have no
+cmdlet at all.
 
 Companion documents: `PLAN.md` (phased roadmap and status) and `docs/` for the
 per-phase walkthroughs, decisions log, risk register and troubleshooting log.
@@ -92,8 +93,8 @@ All `Standard_B2ls_v2`, 2 vCPU and 4 GB, with static private IPs. Keeping the br
 machines on the same size as HQ is what constrained the region choice: the free
 trial offers that size in only three regions, and the first one was full.
 
-Two clients exist so Phase 5 can compare a hardened machine against an untouched
-one, and Phase 6 can demonstrate both LAPS storage backends side by side.
+Two clients exist so Phase 6 can compare a hardened machine against an untouched
+one, and Phase 7 can demonstrate both LAPS storage backends side by side.
 
 **One Bastion serves both sites.** The Basic SKU reaches VMs in peered networks, so
 the host in Sweden Central connects to the branch clients without a second
@@ -160,7 +161,7 @@ Phase walkthroughs, with status:
 | [02-entra-connect.md](docs/02-entra-connect.md) | Entra Connect Sync, scoped to one OU | **Completed** |
 | [03-branch-network.md](docs/03-branch-network.md) | Second region, peered branch office | **Completed** |
 | [04-hybrid-join.md](docs/04-hybrid-join.md) | AD sites, domain join, hybrid Entra join | **Completed** |
-| [05-group-policy.md](docs/05-group-policy.md) | Central Store, linked GPOs, verified on the clients | Completed |
+| [05-group-policy.md](docs/05-group-policy.md) | Central Store, linked GPOs, verified on the clients | **Completed** |
 | [06-security-baselines.md](docs/06-security-baselines.md) | Microsoft baselines, hardened against control | Pending |
 | [07-windows-laps.md](docs/07-windows-laps.md) | LAPS to Active Directory and to Entra ID | Pending |
 | [08-tiered-administration.md](docs/08-tiered-administration.md) | Tier 0/1/2 with enforced logon boundaries | Stretch |
@@ -174,7 +175,7 @@ format is worth keeping.
 
 ## 4. Status
 
-**Phases 0 to 4 are complete and deployed.** The Azure footprint is up across two
+**Phases 0 to 5 are complete and deployed.** The Azure footprint is up across two
 regions, the forest runs, five seed users synchronise into Entra ID with the
 `NoSync` OU correctly absent, and both branch clients are Microsoft Entra hybrid
 joined: an identity in Active Directory and a registration in the cloud at the same
