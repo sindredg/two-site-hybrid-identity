@@ -164,16 +164,26 @@ this entry does. Tracked as open rather than closed.
 
 ---
 
-## 7. Default outbound access
+## 7. Default outbound access, on two subnets now
 
 With the public IPs removed, the VMs reach the internet through Azure's implicit
-outbound access, confirmed by `defaultOutboundAccess: true` on the subnet. That
-address is Azure-owned, can change, and Microsoft is moving new virtual networks
-to private-by-default.
+outbound access. That address is Azure-owned, can change, and Microsoft is moving new
+virtual networks to private-by-default.
 
-If this VNet is ever rebuilt, outbound may need an explicit NAT Gateway. Windows
-Update, the Security Compliance Toolkit download, and activation all depend on it,
-so the failure would be broad rather than subtle.
+Confirmed on both subnets rather than assumed:
+
+```bash
+az network vnet subnet show --resource-group rg-branch-office --vnet-name vnet-branch --name snet-branch
+```
+
+`defaultOutboundAccess: true` on `snet-lab` and on `snet-branch`. The branch subnet
+was worth checking specifically, because it was created after Microsoft began
+withdrawing the default, and it was ruled out as a cause during the Phase 4 device
+registration failure.
+
+If either network is rebuilt, outbound may need an explicit NAT Gateway. Windows
+Update, the Security Compliance Toolkit download, hybrid join device registration and
+activation all depend on it, so the failure would be broad rather than subtle.
 
 ---
 
@@ -237,9 +247,14 @@ Enable-ADOptionalFeature 'Recycle Bin Feature' -Scope ForestOrConfigurationSet -
 **It is irreversible**, which is why it is off by default and why it was worth a
 moment's thought rather than a reflex. For a lab where every object was created by
 a script and could be recreated by re-running it, the case is weaker than in
-production. The case *for* enabling it is that Phase 7 extends the schema and
-Phase 8 restructures OUs, and an accidental deletion during either would otherwise
-be unrecoverable. That decided it.
+production. The case *for* enabling it was that Phase 7 would extend the schema and
+Phase 8 would restructure OUs, and an accidental deletion during either would
+otherwise be unrecoverable. That decided it.
+
+**Phase 7 has since run**, adding six attributes and an extended right to the schema.
+That change is itself irreversible and independent of the Recycle Bin, which protects
+deleted objects rather than schema modifications. Two irreversible operations, one
+guarding against accidents in the other, and neither undoable on its own terms.
 
 Evidence and the confirmation prompt are in
 [05-group-policy.md](05-group-policy.md).

@@ -421,13 +421,61 @@ tool would earn its friction.
 
 ---
 
+## 17. LAPS passwords encrypt to a Tier 1 group, not to Domain Admins
+
+**Decision.** The authorized password decryptor is `SINDREDG\sg-it-admins`. CL01
+backs up to Active Directory, CL02 to Entra ID. The managed account name is left
+unset.
+
+**Why the decryptor matters more than the ACL.** There are two independent gates.
+`Set-LapsADReadPasswordPermission` writes a directory ACL controlling who can read
+the attribute. The GPO's encryption principal controls who can decrypt its contents.
+Granting the ACL to `sg-it-admins` while leaving the encryption principal at its
+default would have quietly handed decryption back to Domain Admins, and the
+least-privilege intent would have existed only on paper.
+
+**Rejected: leaving the encryption principal unset.** The default is Domain Admins.
+It works, and it makes the ACL decorative.
+
+**The boundary is real and was verified.** Reading CL01's password as `labadmin`,
+sole member of Domain Admins, returns the object with
+`DecryptionStatus: Unauthorized`. Forest administration does not confer decryption.
+
+**Its limit is worth stating.** A Domain Admin who cannot decrypt can still edit the
+GPO, point the encryption principal at themselves and force a rotation. The boundary
+constrains reading, not someone who can rewrite policy. It raises the cost and leaves
+a trail; it is not a wall against the forest owner. Phase 8 is what narrows who holds
+that position in the first place.
+
+**Given up.** Encrypting to a group ties every stored password to that group's SID.
+Delete `sg-it-admins` and recreate it and the existing encrypted passwords become
+undecryptable. Not fatal, since any machine can be forced to rotate and write a fresh
+one, but it is a real dependency that a plaintext or Domain-Admin-encrypted store
+would not have.
+
+**Which backend for which client.** CL01 to Active Directory because that is the
+backend with the interesting access control story, and it is also the machine Phase 6
+hardened. CL02 to Entra ID because it is the untouched control and its half is a
+tenant role rather than a directory ACL. Running both is what makes the contrast
+visible: the same question, "who may read a machine's local administrator password",
+answered by a directory ACL plus an encryption principal on one side and by role
+membership on the other.
+
+**The account name is deliberately unset.** LAPS then manages the built-in
+administrator, identified by RID 500 rather than by name. On these VMs Azure renamed
+that account to `labadmin` rather than creating a second one, so the default targets
+exactly the shared credential the risk register names. Setting the name explicitly
+would have been redundant and would have broken if the account were ever renamed
+again.
+
+---
+
 ## Pending decisions
 
 | Decision | Phase | Notes |
 |---|---|---|
 | Whether the GPO estate is exported into the repository | 7 | Bastion Basic offers no file transfer, so any export needs a storage account and a SAS. Deferred rather than half-built |
-| Which LAPS backend for which client | 7 | Currently CL01 to Active Directory, CL02 to Entra ID. A device can use one or the other but not both |
-| Who can decrypt LAPS passwords | 7 | The forest supports encryption. Which group holds decryption rights is the actual security decision, not whether to enable it |
+| Whether to bring CS01 under LAPS | 8 | It sits in `CN=Computers`, which no GPO can be linked to, so it needs moving into an OU. Phase 8 restructures OUs anyway |
 | Whether to fold HQ into the shared VM module | 5 | Needs `moved` blocks against a promoted domain controller. Worth doing only on its own, with nothing else in the plan |
 | Whether Phase 8 happens at all | 8 | Marked stretch. Phases 2 to 7 already tell a complete story |
 
