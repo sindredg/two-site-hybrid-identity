@@ -50,18 +50,37 @@ implement one, so this cannot be solved in the configuration.
 
 ---
 
-## 3. One password across every VM
+## 3. One password across every VM, now partially fixed
 
-The same local administrator credential is used on every machine, and becomes the
-Domain Admin password after promotion. Convenient for a lab, and
-exactly the flat-credential pattern that endpoint hardening exists to argue
-against.
+The same local administrator credential was used on every machine, and became the
+Domain Admin password after promotion. Exactly the flat-credential pattern that
+endpoint hardening exists to argue against.
 
-**No longer out of scope.** Phase 6 deploys Windows LAPS, which gives every
-machine its own rotating local administrator password stored encrypted in Active
-Directory. Phase 7 splits the single Domain Admin account into a tiered model.
-This entry stays open until both are done, and closing it is the point of those
-phases rather than a side effect.
+**Phase 7 closed half of it.** Windows LAPS now gives each managed endpoint its own
+random rotating password, encrypted at rest and readable only by `sg-it-admins`:
+
+| Machine | Local administrator | State |
+|---|---|---|
+| CL01 | Managed by LAPS, encrypted, in Active Directory | Fixed |
+| CL02 | Managed by LAPS, in Entra ID | Fixed |
+| CS01 | Still the shared Terraform password | **Open** |
+| DC01 | No local accounts exist; promotion migrated them into the directory | Not applicable |
+
+**CS01 is the remaining gap and it is structural.** Its computer object sits in
+`CN=Computers` because it joined the domain in Phase 1 before the OU structure
+existed, and a GPO cannot be linked to a container. Moving it into an OU is the fix,
+and Phase 8 restructures OUs anyway.
+
+**The domain half is untouched.** `labadmin` remains the sole member of Domain
+Admins, and LAPS has nothing to say about directory accounts. That is entirely
+Phase 8's job.
+
+**Worth recording as a win.** The encryption principal binds even Domain Admins:
+reading CL01's password as `labadmin` returns the object with
+`DecryptionStatus: Unauthorized`. Forest administration does not confer decryption,
+which is a stronger boundary than a directory ACL alone.
+
+This entry stays open until CS01 is covered and the Domain Admin account is split.
 
 ---
 

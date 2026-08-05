@@ -86,8 +86,8 @@ DomainJoined  : YES
 The Entra Devices blade was empty. Re-running the registration scheduled task on the
 clients changed nothing, and neither did restarting them.
 
-**First hypothesis, wrong.** That the OU filter did not include `OU=Workstations`.
-Checked directly rather than assumed:
+**Ruled out: the OU filter.** If `OU=Workstations` were outside the Connect Sync
+scope the objects would never be exported. Checked directly rather than assumed:
 
 ```powershell
 (Get-ADSyncConnector | Where-Object { $_.Type -eq "AD" }).Partitions[0].ConnectorPartitionScope.ContainerInclusionList
@@ -96,10 +96,9 @@ Checked directly rather than assumed:
 It returned `OU=Sync,DC=sindredg,DC=local`. Selecting a parent OU includes its
 children, so `OU=Workstations` was already in scope. Not the cause.
 
-**Second hypothesis, also wrong.** That the branch subnet had no outbound internet
-access and the clients could not reach `enterpriseregistration.windows.net`.
-Plausible, because Azure no longer gives default outbound access to every new
-virtual network:
+**Ruled out: outbound access from the branch.** A client that cannot reach
+`enterpriseregistration.windows.net` cannot register, and Azure no longer gives
+default outbound access to every new virtual network:
 
 ```bash
 az network vnet subnet show --resource-group rg-branch-office --vnet-name vnet-branch --name snet-branch
@@ -107,10 +106,9 @@ az network vnet subnet show --resource-group rg-branch-office --vnet-name vnet-b
 
 `defaultOutboundAccess: true`. Not the cause either.
 
-**What actually isolated it.** Comparing users against devices in the tenant. The
-five synced users were present and correct; devices were entirely absent. That
-split rules out "sync is broken" and points at "these particular objects are not
-being exported".
+**What isolated it.** Comparing users against devices in the tenant. The five synced
+users were present and correct; devices were entirely absent. That split rules out
+"sync is broken" and points at "these particular objects are not being exported".
 
 ```bash
 az rest --method GET --url "https://graph.microsoft.com/v1.0/devices"

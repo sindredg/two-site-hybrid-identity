@@ -163,7 +163,7 @@ Phase walkthroughs, with status:
 | [04-hybrid-join.md](docs/04-hybrid-join.md) | AD sites, domain join, hybrid Entra join | **Completed** |
 | [05-group-policy.md](docs/05-group-policy.md) | Central Store, linked GPOs, verified on the clients | **Completed** |
 | [06-security-baselines.md](docs/06-security-baselines.md) | Microsoft baselines, hardened against control | **Completed** |
-| [07-windows-laps.md](docs/07-windows-laps.md) | LAPS to Active Directory and to Entra ID | Pending |
+| [07-windows-laps.md](docs/07-windows-laps.md) | LAPS to Active Directory and to Entra ID | **Completed** |
 | [08-tiered-administration.md](docs/08-tiered-administration.md) | Tier 0/1/2 with enforced logon boundaries | Stretch |
 
 Pending docs are written from documented behaviour and marked as such at the top.
@@ -175,7 +175,7 @@ format is worth keeping.
 
 ## 4. Status
 
-**Phases 0 to 5 are complete and deployed.** The Azure footprint is up across two
+**Phases 0 to 7 are complete and deployed.** The Azure footprint is up across two
 regions, the forest runs, five seed users synchronise into Entra ID with the
 `NoSync` OU correctly absent, and both branch clients are Microsoft Entra hybrid
 joined: an identity in Active Directory and a registration in the cloud at the same
@@ -199,8 +199,17 @@ comparable. CL01 gains two entire policy categories the control does not have, a
 stops accepting the shared local administrator account over Bastion, which is the flat
 credential in the risk register being refused by policy rather than by intention.
 
-Phases 7 and 8 are documented ahead of execution and marked pending. See
-[PLAN.md](PLAN.md).
+**Phase 7 is complete, and it is where the two halves meet.** Windows LAPS gives each
+client its own rotating local administrator password, delivered by on-premises Group
+Policy, with CL01 storing its secret encrypted in Active Directory and CL02 storing
+its in Entra ID. The same command against the two machines returns two different
+correct answers, which is the one-backend-or-the-other rule made visible.
+
+The result worth reading is a refusal. Retrieving CL01's password as a Domain Admin
+returns the object with `DecryptionStatus: Unauthorized`, because it was encrypted to
+a Tier 1 group and to nothing else. Forest administration does not confer decryption.
+
+Phase 8 is documented ahead of execution and marked stretch. See [PLAN.md](PLAN.md).
 
 ---
 

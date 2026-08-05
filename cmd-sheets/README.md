@@ -11,6 +11,7 @@ can stay a narrative and this can stay copy-pasteable.
 | [ad-sites.md](ad-sites.md) | Sites, subnets, replication topology | CS01 |
 | [ad-join.md](ad-join.md) | Domain join and computer objects | The joining client, and CS01 |
 | [entra-sync.md](entra-sync.md) | Connect Sync cycles, scheduler, hybrid join, device state | CS01 and the clients |
+| [laps.md](laps.md) | Windows LAPS schema, permissions, policy, retrieval, diagnostics | CS01 and the clients |
 | [group-policy.md](group-policy.md) | Central Store, GPOs, links, filtering, RSoP, backup | CS01 and the clients |
 
 ## Conventions

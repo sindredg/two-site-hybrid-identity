@@ -16,6 +16,7 @@ one to search when something breaks.
 | 4 | [04-hybrid-join.md](04-hybrid-join.md) | A missing module path, and a sync that reported success while syncing nothing new |
 | 5 | [05-group-policy.md](05-group-policy.md) | Four machines and two accounts sharing a name, and a file copy that reported success while copying half |
 | 6 | [06-security-baselines.md](06-security-baselines.md) | A baseline that blocked the tool sent to measure it, and a measurement done another way |
+| 7 | [07-windows-laps.md](07-windows-laps.md) | Two refusals about who you are, and a correct policy ruined by one character |
 
 ## Recurring themes
 

@@ -200,9 +200,10 @@ Services` to `Local account` and `Deny access to this computer from the network`
 in `risk-and-limitations.md` entry 3 being refused by policy, which is the behaviour
 the baseline is for.
 
-**One prediction was wrong and is recorded as such.** Baseline firewall settings were
-expected to replace the Phase 5 ICMP and WMI rules. They did not. The baseline owns
-the profile while the rules stay owned by `Workstation-Baseline`, so the two merge.
+**Firewall profile and firewall rules are separate policy areas.** The baseline owns
+the profile on CL01 while the Phase 5 ICMP and WMI rules stay owned by
+`Workstation-Baseline`. They merge rather than compete, so a baseline can harden the
+profile without touching a single rule.
 
 **Policy Analyzer was dropped.** It runs on the endpoint rather than centrally, its
 comparison step is GUI-only, and on the hardened client the baseline blocked it from
@@ -215,40 +216,61 @@ recorded in `decisions.md`.
 
 ---
 
-## Phase 7. Windows LAPS, both backends: Pending
+## Phase 7. Windows LAPS, both backends: Completed
 
 **Goal.** Remove the shared local administrator password, and demonstrate the two
 LAPS storage modes side by side. This is where the two halves of the lab meet.
 
-A hybrid-joined device can back its password up to **either** Active Directory
-**or** Entra ID, not both. With two clients we do one of each:
+Walkthrough: [docs/07-windows-laps.md](docs/07-windows-laps.md).
+
+A hybrid-joined device backs its password up to **either** Active Directory **or**
+Entra ID, never both. With two clients, one of each:
 
 | Client | Backup directory | Retrieved with |
 |---|---|---|
-| CL01 | Active Directory | `Get-LapsADPassword` |
-| CL02 | Microsoft Entra ID | Entra admin center or Graph |
+| CL01 | Active Directory, encrypted to `sg-it-admins` | `Get-LapsADPassword` |
+| CL02 | Microsoft Entra ID | Local administrator password recovery |
 
-Both policies are delivered by **Group Policy**, built in Phase 5. Intune is not
-required and is not used.
+Both policies delivered by **Group Policy**, built in Phase 5. Intune not required
+and not used.
 
-1. Extend the schema: `Update-LapsADSchema`, a one-time forest operation
-2. Grant devices permission to write their own password:
-   `Set-LapsADComputerSelfPermission -Identity "OU=Workstations,OU=Sync,DC=sindredg,DC=local"`
-3. Enable LAPS in the tenant: Entra admin center, Devices, Device settings
-4. Configure two LAPS GPOs differing only in `BackupDirectory`
-5. Retrieve a password from each backend and confirm rotation
-6. Enable DSRM password management on DC01
+Delivered:
 
-The forest is at Windows2016 functional level with a Server 2022 domain
-controller, which is the configuration where AD-side password **encryption** and
-**DSRM account management** both work. On an older domain neither is available.
+| Item | Detail |
+|---|---|
+| Schema extended | Six `msLAPS-*` attributes plus the `ms-LAPS-Encrypted-Password-Attributes` extended right. Irreversible |
+| Three separate rights | Machines write their own password, `sg-it-admins` reads, `sg-it-admins` resets |
+| Two filtered GPOs | Identical except for the backend, one per client |
+| Encryption at rest | AD side encrypted to a Tier 1 group rather than the Domain Admins default |
+
+**The result worth showing is a refusal.** Reading CL01's password as `labadmin`,
+sole member of Domain Admins, returns the object with
+`DecryptionStatus: Unauthorized`. A directory ACL and an encryption principal are
+independent gates, and forest administration passes only the first.
+
+**LAPS manages the account that mattered.** `labadmin` turned out to be RID 500,
+because Azure renames the built-in Administrator rather than creating a second
+account, and LAPS targets that account by RID rather than by name.
+
+The forest is at Windows2016 functional level with a Server 2022 domain controller,
+which is the configuration where AD-side password **encryption** and **DSRM account
+management** both work. On an older domain neither is available.
 
 **Licensing.** The LAPS feature is free. AD backup needs nothing. Entra ID backup
 needs Entra ID Free, which every tenant has.
 
-**Exit criteria.** Both clients have machine-specific rotating passwords, one
-stored encrypted in AD and one in Entra ID, each retrievable only by an authorised
-principal. The shared-credential entry in `risk-and-limitations.md` closes.
+**Exit criteria met, with two verifications outstanding.** Both clients hold
+machine-specific rotating passwords in different directories. Not captured: a
+successful decryption as `sg-it-admins`, and a rotation. Both are recorded in the
+phase document rather than assumed.
+
+**Carried forward.** The shared-credential entry in `risk-and-limitations.md`
+**partially** closes. CL01 and CL02 are covered; CS01 still holds the shared
+Terraform password because it sits in `CN=Computers` where no GPO can reach it, and
+the domain `labadmin` is untouched. Both are Phase 8.
+
+**Not done.** DSRM password management on DC01, which the schema extension prepared
+for. Optional, and skipped to close the phase.
 
 ---
 

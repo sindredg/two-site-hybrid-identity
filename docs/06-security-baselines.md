@@ -120,10 +120,10 @@ local-administrator credential that [risk-and-limitations.md](risk-and-limitatio
 entry 3 names as a weakness is now refused by policy on the hardened endpoint. Deny
 rights beat allow rights, so no group membership works around it.
 
-### The firewall, where the prediction was wrong
+### The firewall, where profile and rules turn out to be separate
 
-The expectation going in was that baseline firewall settings would replace the ICMP
-and WMI rules built in Phase 5.
+The baseline sets firewall policy, and Phase 5 wrote firewall rules into
+`Workstation-Baseline`. Both now apply to CL01, so the question is which wins.
 
 ![Firewall profile set by the baseline](images/phase6/firewall-profile-cl01.png)
 
@@ -135,9 +135,10 @@ winning from `Baseline-MemberServer-2022`. The **rules** are a separate list, an
 the `10.10.1.0/24, 10.20.1.0/24` scope it was given in Phase 5. The WMI rules behave
 the same way.
 
-Profile settings and rule sets merge rather than compete. Recorded because the
-prediction was wrong, and a corrected prediction is worth more than one never written
-down.
+**Neither wins, because they are not competing.** Profile settings and rule sets are
+two separate policy areas that merge. A baseline can harden the profile without
+touching a single rule, which is worth knowing before assuming a baseline will
+flatten everything configured before it.
 
 ### SmartScreen, found by accident
 
