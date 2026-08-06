@@ -10,9 +10,23 @@ has not been implemented. See the [phase documentation](docs/),
 [decisions](docs/decisions.md), [risk register](docs/risk-and-limitations.md) and
 [troubleshooting log](docs/troubleshooting/README.md).
 
-Two halves that meet at the end. The first connects an on-premises-style forest to
-the cloud. The second manages the machines inside it. They join in the final phase,
-where a Group Policy delivered on-premises stores its secret in Entra ID.
+## Business problem
+
+Many organisations still depend on Active Directory for Windows authentication,
+Group Policy and legacy applications while adopting Microsoft Entra ID for cloud
+access. They need to modernise identity without creating separate user accounts,
+weakening endpoint controls or exposing directory servers to the internet.
+
+This project demonstrates that transition: one AD forest serves two Azure-hosted
+sites, selected identities and devices synchronize into Entra ID, and consistent
+policy and credential controls reach the branch endpoints. Terraform makes the
+infrastructure repeatable, while Bastion, security baselines and Windows LAPS reduce
+public exposure, configuration drift and shared local-administrator risk.
+
+Two halves that meet at the end. The first connects an enterprise-style AD forest
+hosted in Azure to Entra ID. The second manages the machines inside it. They join
+in Phase 7, where an AD-delivered Group Policy stores a managed endpoint secret in
+Entra ID.
 
 **The second site was not in the original design.** The clients would not fit inside
 the first region's vCPU quota and a free trial cannot raise it. Splitting them into
