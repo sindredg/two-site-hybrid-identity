@@ -357,7 +357,7 @@ thing LAPS can manage there.
 
 CS01 is a real gap, and fixing it means moving the computer object out of
 `CN=Computers` into an OU. That is the same container-versus-OU constraint Phase 5
-documented, and Phase 8 restructures OUs anyway.
+documented. The planned Phase 8 work is intended to address it later.
 
 ### Outstanding
 
@@ -393,8 +393,10 @@ everything.
 
 ---
 
-## Next
+## Current milestone boundary
 
-[Phase 8](08-tiered-administration.md) splits the single Domain Admin account into a
-tiered model, and is where CS01's unmanaged local administrator and the Domain Admins
-nesting in section 3 both get addressed.
+The current tested milestone ends here. Planned
+[Phase 8 work](08-tiered-administration.md) would split the single Domain Admin
+account into a tiered model and address CS01's unmanaged local administrator, but
+those controls have not been implemented or validated. They remain explicit
+residual risk and a possible future continuation rather than a completed claim.

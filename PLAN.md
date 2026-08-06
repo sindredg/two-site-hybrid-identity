@@ -3,7 +3,7 @@
 Phases ordered by dependency, not preference. Each is blocked by the one above it,
 and each states what "done" means so progress is checkable rather than asserted.
 
-Status legend: Completed, In progress, Ready to start, Pending, Stretch.
+Status legend: Completed, In progress, Ready to start, Pending, Not implemented.
 
 The lab has two halves that meet at the end. Phases 2 to 4 connect the forest to
 Microsoft Entra ID. Phases 5 to 8 manage and harden the endpoints inside it. Phase
@@ -274,7 +274,13 @@ for. Optional, and skipped to close the phase.
 
 ---
 
-## Phase 8. Tiered administration: Stretch
+## Phase 8. Tiered administration: Planned, not implemented
+
+**Current position.** This optional hardening phase has not been executed or
+validated. The current milestone ends after Phase 7, which already demonstrates the
+two-site infrastructure, hybrid identity, Group Policy, security-baseline and
+Windows LAPS outcomes. The design below remains available for a later continuation
+and must not be read as deployed.
 
 **Goal.** Stop using one Domain Admin account for everything, which is the other
 weakness the risk register names.
@@ -287,8 +293,9 @@ weakness the risk register names.
 **Exit criteria.** A documented, tested failure: a lower-tier account denied access
 to a higher-tier machine, with the event log entry to show it.
 
-Marked stretch because Phases 2 to 6 already tell a complete story. This is the
-phase to drop if the lab has gone on long enough.
+Deferred because Phases 0 to 7 already tell a complete portfolio story for the
+current milestone. A later continuation can revisit the tier model together with
+privileged workstations, stronger identity licensing and operational recovery.
 
 ---
 

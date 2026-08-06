@@ -475,7 +475,6 @@ again.
 | Decision | Phase | Notes |
 |---|---|---|
 | Whether the GPO estate is exported into the repository | 7 | Bastion Basic offers no file transfer, so any export needs a storage account and a SAS. Deferred rather than half-built |
-| Whether to bring CS01 under LAPS | 8 | It sits in `CN=Computers`, which no GPO can be linked to, so it needs moving into an OU. Phase 8 restructures OUs anyway |
+| Whether to bring CS01 under LAPS | Deferred to Phase 8 | It sits in `CN=Computers`, which no GPO can be linked to. The planned OU restructuring has not been implemented, so this remains a documented gap |
 | Whether to fold HQ into the shared VM module | 5 | Needs `moved` blocks against a promoted domain controller. Worth doing only on its own, with nothing else in the plan |
-| Whether Phase 8 happens at all | 8 | Marked stretch. Phases 2 to 7 already tell a complete story |
-
+| Whether Phase 8 happens at all | Deferred | Not implemented in the current milestone. The tier design remains planned future hardening |

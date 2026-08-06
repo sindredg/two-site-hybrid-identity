@@ -1,7 +1,22 @@
-# Phase 8. Tiered administration
+# Phase 8. Tiered administration (planned)
 
-> **Status: Pending, stretch.** Not yet executed, and the phase to drop if the lab
-> has gone on long enough. Phases 2 to 6 already tell a complete story.
+> **Status: Not implemented.** This optional hardening phase has not been executed
+> or validated. The current milestone ends after Phase 7, but this phase may be
+> implemented later. Everything below is a plan, not a claim about the deployed
+> environment.
+
+## Current stopping point
+
+Phases 0 to 7 already demonstrate the complete intended outcome: repeatable Azure
+infrastructure, a two-site AD forest, Entra synchronization and hybrid join, Group
+Policy, measured Microsoft security baselines, and Windows LAPS using both AD and
+Entra storage. Implementing tiered administration would add value, but it would
+also expand the project beyond that outcome.
+
+The remaining flat domain-administrator model is a documented lab limitation, not
+production-ready security. A later continuation should revisit separate
+administrative identities together with privileged access workstations, stronger
+Entra controls, recovery accounts and monitoring.
 
 **Goal:** stop using one Domain Admin account for everything, which is the second
 weakness named in [risk-and-limitations.md](risk-and-limitations.md).
@@ -83,7 +98,8 @@ exists. A screenshot of a successful logon proves nothing about what is blocked.
 
 ## Where the lab ends
 
-After this, the natural next step is Conditional Access requiring a hybrid-joined
-device for administrative access, which would tie Phase 4 and Phase 8 into a single
-control. It needs Entra ID P1, which is unobtainable for this tenant, so the lab
-stops here deliberately rather than pretending past the boundary.
+After this phase, the natural continuation would be
+Conditional Access requiring a hybrid-joined device for administrative access.
+That requires Entra ID P1, which was unavailable to this tenant. The current
+milestone stops at the tested Phase 7 boundary rather than presenting an unverified
+control.

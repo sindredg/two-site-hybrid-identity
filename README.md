@@ -5,7 +5,10 @@ branch office in a second region over virtual network peering, with hybrid-joine
 endpoints managed and hardened through Group Policy, Microsoft security baselines
 and Windows LAPS.
 
-**See (/docs) for documented setup, troubleshooting, decisions etc.**
+**Status: complete through Phase 7.** Phase 8 remains planned future hardening and
+has not been implemented. See the [phase documentation](docs/),
+[decisions](docs/decisions.md), [risk register](docs/risk-and-limitations.md) and
+[troubleshooting log](docs/troubleshooting/README.md).
 
 Two halves that meet at the end. The first connects an on-premises-style forest to
 the cloud. The second manages the machines inside it. They join in the final phase,
@@ -164,12 +167,10 @@ Phase walkthroughs, with status:
 | [05-group-policy.md](docs/05-group-policy.md) | Central Store, linked GPOs, verified on the clients | **Completed** |
 | [06-security-baselines.md](docs/06-security-baselines.md) | Microsoft baselines, hardened against control | **Completed** |
 | [07-windows-laps.md](docs/07-windows-laps.md) | LAPS to Active Directory and to Entra ID | **Completed** |
-| [08-tiered-administration.md](docs/08-tiered-administration.md) | Tier 0/1/2 with enforced logon boundaries | Stretch |
+| [08-tiered-administration.md](docs/08-tiered-administration.md) | Planned Tier 0/1/2 logon boundaries and further hardening | **Not implemented** |
 
-Pending docs are written from documented behaviour and marked as such at the top.
-They get rewritten as records, with screenshots, as each phase is actually run.
-That is how Phase 1 was written, and the failures it contains are the reason the
-format is worth keeping.
+Phase 8 remains planned future work rather than an implementation claim. It has no
+deployment evidence and its controls have not been validated.
 
 ---
 
@@ -209,7 +210,12 @@ The result worth reading is a refusal. Retrieving CL01's password as a Domain Ad
 returns the object with `DecryptionStatus: Unauthorized`, because it was encrypted to
 a Tier 1 group and to nothing else. Forest administration does not confer decryption.
 
-Phase 8 is documented ahead of execution and marked stretch. See [PLAN.md](PLAN.md).
+**The current project milestone ends after Phase 7.** Phase 8 has not been
+implemented. Tiered administration would improve the remaining flat
+domain-administrator model, and the project may return to it for further hardening.
+The residual risk remains explicit in
+[risk-and-limitations.md](docs/risk-and-limitations.md); the planned design is kept
+in [08-tiered-administration.md](docs/08-tiered-administration.md).
 
 ---
 
@@ -237,7 +243,9 @@ Then the branch, which has its own state and its own `terraform.tfvars`. Copy it
 from the example and set the same subscription and password:
 
 ```bash
-cd ../branch && cp terraform.tfvars.example terraform.tfvars && terraform init && terraform apply
+cd ../azure-denmarkeast/branch
+cp terraform.tfvars.example terraform.tfvars
+terraform init && terraform apply
 ```
 
 Apply HQ first. The branch reads the HQ network through a data source and creates

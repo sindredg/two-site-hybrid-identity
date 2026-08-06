@@ -68,12 +68,13 @@ random rotating password, encrypted at rest and readable only by `sg-it-admins`:
 
 **CS01 is the remaining gap and it is structural.** Its computer object sits in
 `CN=Computers` because it joined the domain in Phase 1 before the OU structure
-existed, and a GPO cannot be linked to a container. Moving it into an OU is the fix,
-and Phase 8 restructures OUs anyway.
+existed, and a GPO cannot be linked to a container. Moving it into an OU is the fix.
+The planned Phase 8 work would perform that restructuring, but it has not yet been
+implemented.
 
 **The domain half is untouched.** `labadmin` remains the sole member of Domain
-Admins, and LAPS has nothing to say about directory accounts. That is entirely
-Phase 8's job.
+Admins, and LAPS has nothing to say about directory accounts. Planned Phase 8 work
+is intended to address this, so the risk remains open.
 
 **Worth recording as a win.** The encryption principal binds even Domain Admins:
 reading CL01's password as `labadmin` returns the object with
@@ -248,8 +249,8 @@ Enable-ADOptionalFeature 'Recycle Bin Feature' -Scope ForestOrConfigurationSet -
 moment's thought rather than a reflex. For a lab where every object was created by
 a script and could be recreated by re-running it, the case is weaker than in
 production. The case *for* enabling it was that Phase 7 would extend the schema and
-Phase 8 would restructure OUs, and an accidental deletion during either would
-otherwise be unrecoverable. That decided it.
+the proposed Phase 8 would have restructured OUs, and an accidental deletion during
+either would otherwise be unrecoverable. That decided it.
 
 **Phase 7 has since run**, adding six attributes and an extended right to the schema.
 That change is itself irreversible and independent of the Recycle Bin, which protects
