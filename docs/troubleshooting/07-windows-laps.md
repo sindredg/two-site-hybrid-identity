@@ -42,9 +42,10 @@ rather than for group membership.
 
 **Resolution applied.** PowerShell started with **Run as administrator**.
 
-**Lesson.** "I am an admin" and "this process holds admin rights" are different
-statements. The error says *local administrator* and means *elevated*, which is the
-kind of wording that sends people to check group membership they already have.
+**Lesson.** "this account is an admin" and "this process holds admin rights" are
+different statements. The error says *local administrator* and means *elevated*,
+which is the kind of wording that sends people to check group membership they
+already have.
 
 ---
 

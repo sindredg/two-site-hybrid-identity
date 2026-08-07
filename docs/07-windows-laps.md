@@ -1,7 +1,7 @@
 # Phase 7. Windows LAPS, both backends
 
-**Goal:** give every managed endpoint its own rotating local administrator
-password, stored encrypted, and demonstrate both storage backends side by side.
+**Built:** every managed endpoint given its own rotating local administrator
+password, stored encrypted, with both storage backends demonstrated side by side.
 This is where the two halves of the lab meet: a policy delivered by on-premises
 Group Policy puts one machine's secret in Active Directory and the other's in
 Entra ID.
@@ -12,24 +12,18 @@ Entra ID.
 > [What is Windows LAPS?](https://learn.microsoft.com/windows-server/identity/laps/laps-overview)
 > and [Windows LAPS in Microsoft Entra ID](https://learn.microsoft.com/entra/identity/devices/howto-manage-local-admin-passwords).
 
-**Why this matters.** Every Windows machine has a built-in local administrator, and
-in most estates that account carries the same password everywhere because it came
-from an image. That is the most reliable lateral movement path in Windows: take one
-machine, dump the hash, walk onto every other machine with it. No privilege
-escalation required.
-
-LAPS breaks the chain. Each machine generates its own password, writes it to its own
-directory object, rotates it on a schedule and again after use, and exposes it only
-to principals holding a specific right. Compromising one machine now gets you one
-machine.
+**What it fixes.** In most estates the built-in local administrator carries the same
+password on every machine because it came from an image, which is the most reliable
+lateral movement path in Windows: take one machine, dump the hash, walk onto the
+rest. LAPS gives each machine its own password, rotated on a schedule and again
+after use, readable only by principals holding a specific right.
 
 **Windows LAPS, not legacy LAPS.** The 2015 version was an MSI installed on every
 endpoint using `ms-Mcs-AdmPwd` attributes. Windows LAPS is in-box on Server 2019 and
 later, uses `msLAPS-*` attributes, supports encryption at rest, and can target Entra
 ID. Nothing is installed on any machine in this phase.
 
-**Status: complete, with two verifications outstanding.** See section 8. Failures
-along the way are in
+Two verifications are outstanding, see section 8. Failures along the way are in
 [troubleshooting/07-windows-laps.md](troubleshooting/07-windows-laps.md).
 
 ---
@@ -63,10 +57,10 @@ Update-LapsADSchema -Verbose
 
 ![Schema update, binding to the schema FSMO](images/phase7/schema-update-start.png)
 
-The preflight is worth reading. It confirms domain membership, notes that elevation
-is not needed because this is not a domain controller, runs DC locator, and binds
-specifically to the **schema FSMO role holder** rather than to any convenient domain
-controller. Schema changes have exactly one legitimate target in a forest.
+The preflight confirms domain membership, notes that elevation is not needed because
+this is not a domain controller, runs DC locator, and binds specifically to the
+**schema FSMO role holder** rather than to any convenient domain controller. Schema
+changes have exactly one legitimate target in a forest.
 
 `DcSiteName: HQ-SwedenCentral` and `ClientSiteName: HQ-SwedenCentral` in that output
 are the Phase 4 site definitions being consumed by something that had no idea they
@@ -88,17 +82,15 @@ Six attributes and one extended right are added:
 | `msLAPS-EncryptedDSRMPasswordHistory` | Its history |
 
 The extended right, `ms-LAPS-Encrypted-Password-Attributes`, is a named permission
-grantable in an ACL. Its existence is the point: "can read this computer object" and
-"can read this computer's password" become two different rights.
+grantable in an ACL, which makes "can read this computer object" and "can read this
+computer's password" two different rights.
 
 **This cannot be undone.** Schema attributes can be deactivated but never removed,
 and the change replicates to every domain controller in the forest. It requires
-Schema Admins and, in a real environment, a change window. Here it is one prompt.
+Schema Admins and, in a real environment, a change window.
 
 `schemaUpdateNow` is invoked twice, forcing the domain controller to reload its
-schema cache rather than waiting out the five-minute default. With one DC that is
-immediate; in a larger forest the change would then need to replicate before
-anything could depend on it.
+schema cache rather than waiting out the five-minute default.
 
 ---
 
@@ -127,9 +119,7 @@ name. Please use a fully qualified name instead
 
 A bare name could resolve against the local SAM database, the domain, or a trusted
 domain. LAPS refuses to guess, because resolving it wrongly would grant
-password-read rights to the wrong principal. The same category of refusal as Entra
-Connect rejecting a Domain Admin in Phase 2: a tool enforcing precision exactly where
-a sloppy answer becomes a security problem.
+password-read rights to the wrong principal.
 
 ```powershell
 Set-LapsADReadPasswordPermission -Identity "OU=Workstations,OU=Sync,DC=sindredg,DC=local" -AllowedPrincipals "SINDREDG\sg-it-admins"
@@ -155,8 +145,8 @@ Find-LapsADExtendedRights -Identity "OU=Workstations,OU=Sync,DC=sindredg,DC=loca
 ```
 
 **Domain Admins appears without having been granted anything**, because it holds
-*All Extended Rights* implicitly across the directory. Worth noticing rather than
-glossing over, and section 6 shows why it matters less than it looks.
+*All Extended Rights* implicitly across the directory. Section 6 shows why it matters
+less than it looks.
 
 ---
 
@@ -209,10 +199,10 @@ Not Configured, nothing else in the node has any effect.
 two clients exist. The encryption settings are AD-only; the tenant handles encryption
 on the Entra side. Everything else is identical, so the backend is the only variable.
 
-`Post-authentication actions` set to reset and log off is the setting worth
-understanding. A retrieved password is invalidated after a 24 hour grace period
-rather than surviving until the next scheduled rotation, which turns a read from
-"I hold this credential indefinitely" into "I hold it for one session".
+`Post-authentication actions` is set to reset and log off. A retrieved password is
+invalidated after a 24 hour grace period rather than surviving until the next
+scheduled rotation, so a read grants the credential for one session rather than
+indefinitely.
 
 ```powershell
 Get-GPO -Name "Workstation-LAPS-AD"
@@ -221,7 +211,7 @@ Get-GPO -Name "Workstation-LAPS-AD"
 ![Version counter confirms where the settings landed](images/phase7/gpo-version-counter.png)
 
 `ComputerVersion` at 6 while `UserVersion` stays at 0 confirms the settings went into
-the computer half. Same check as Phase 5, and it costs nothing.
+the computer half. Same check as Phase 5.
 
 ---
 
@@ -286,11 +276,8 @@ misunderstanding:
 
 A Domain Admin passes the first through *All Extended Rights* and fails the second,
 because the password was encrypted to `sg-it-admins` and to nothing else. **Forest
-administration does not confer decryption.**
-
-That is a stronger boundary than the ACL alone provides, and it is the reason the
-encryption principal is worth setting rather than leaving at its default of Domain
-Admins.
+administration does not confer decryption.** That is why the encryption principal is
+set rather than left at its default of Domain Admins.
 
 ---
 
@@ -310,13 +297,12 @@ password then appears under **Local administrator password recovery**:
 
 Last rotation and next rotation thirty days apart, matching the password age in the
 GPO. The policy came from on-premises Group Policy and the secret landed in the
-cloud, which is the sentence this lab was built to be able to write.
+cloud.
 
 **The same question, answered by two different systems.** On the AD side, access is a
-directory ACL plus an encryption principal: fine-grained, and auditable with
-directory tooling. On the Entra side it is role membership, Cloud Device
-Administrator or above. Coarser, centrally managed, audited somewhere else entirely.
-Running both backends is what makes that contrast concrete rather than theoretical.
+directory ACL plus an encryption principal: fine-grained, auditable with directory
+tooling. On the Entra side it is role membership, Cloud Device Administrator or
+above: coarser, centrally managed, audited somewhere else entirely.
 
 ---
 
@@ -370,9 +356,6 @@ privileged, is what demonstrates the boundary end to end.
 
 **Rotation.** `Reset-LapsPassword` on a client followed by a second read would prove
 this is not a one-shot.
-
-Naming what was not proven is more useful than a phase that quietly claims
-everything.
 
 ---
 

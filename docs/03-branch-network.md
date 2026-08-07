@@ -1,20 +1,17 @@
 # Phase 3. Branch office network
 
-**Goal:** put the client machines in a second Azure region, in their own resource
+**Built:** the client machines in a second Azure region, in their own resource
 group and Terraform state, peered back to the domain controller in Sweden Central.
+The clients would not fit inside the Sweden Central vCPU quota and a free trial
+cannot raise it, so moving them added two sites, cross-region peering, and DNS and
+Kerberos travelling over it. Alternatives in [decisions.md](decisions.md).
 
 > Infrastructure in `terraform/azure-denmarkeast`, sharing a module with the HQ root.
 > Commands used in this phase: [terraform.md](../cmd-sheets/terraform.md) and
 > [azure-cli.md](../cmd-sheets/azure-cli.md).
 
-**Why this matters.** The clients would not fit inside the Sweden Central vCPU
-quota, and a free trial cannot raise it. Moving them to a second region turned a
-dead end into the layer the lab was missing: two sites, cross-region peering, and
-DNS and Kerberos travelling over it. Reasoning and alternatives in
-[decisions.md](decisions.md).
-
-**Status: complete.** Choosing a region took three attempts, each failing further
-along than the last. Those are in
+Choosing a region took three attempts, each failing further along than the last.
+Those are in
 [troubleshooting/03-branch-network.md](troubleshooting/03-branch-network.md).
 
 ---
@@ -107,10 +104,9 @@ flowchart TB
 | HQ | Sweden Central | `rg-hybridid-swedencentral` | 10.10.0.0/16 | DC01, CS01 |
 | Branch | Denmark East | `rg-branch-office` | 10.20.0.0/16 | CL01, CL02 |
 
-**One Bastion serves both sites.** The Basic SKU supports connecting to VMs in
-peered virtual networks, so the host already running in Sweden Central reaches the
-branch clients without a second deployment. Only the Developer SKU lacks that,
-which is the difference between one hourly charge and two.
+**One Bastion serves both sites.** The Basic SKU connects to VMs in peered virtual
+networks, so the host already running in Sweden Central reaches the branch clients
+without a second deployment. Only the Developer SKU lacks that.
 
 **The branch network points at 10.10.1.4 for DNS from creation.** Unlike Phase 1,
 where the DNS setting was added after DC01 was promoted, the domain controller
@@ -226,8 +222,8 @@ ping 10.10.1.4
 ![DC01 answering across the peering](images/phase3/ping-dc01-cross-region.png)
 
 **Four replies at 16 to 17 milliseconds.** The number is the evidence, not the
-success. A reply from the same subnet would be well under a millisecond, so this is
-genuinely the round trip from Denmark East to Sweden Central and back.
+reply. A same-subnet reply would be well under a millisecond, so this is genuinely
+the round trip from Denmark East to Sweden Central and back.
 
 ---
 
@@ -241,10 +237,10 @@ The same command against CS01 and CL02 times out.
 
 This looks like a network fault and is not one.
 
-**CL01 to CL02 is the shortest path in the lab.** Same subnet, same virtual
-network, no peering. CL01 to DC01 is the longest. If routing, peering or the
-network security groups were at fault, the long path would fail and the short one
-would work. The results are the other way round.
+CL01 to CL02 is the shortest path in the lab: same subnet, same virtual network, no
+peering. CL01 to DC01 is the longest. If routing, peering or the NSGs were at fault,
+the long path would fail and the short one would work. The results are the other way
+round.
 
 The cause is Windows Firewall on each destination:
 
@@ -264,9 +260,8 @@ the ports that matter instead, from CL01:
 Test-NetConnection 10.10.1.4 -Port 389
 ```
 
-Enabling ICMP across the estate is left to Phase 5 deliberately. Doing it through a
-Group Policy linked at the domain, rather than host by host, is a textbook use of
-what that phase is about.
+Enabling ICMP across the estate is left to Phase 5, where a Group Policy linked at
+the domain does it in one place rather than host by host.
 
 ---
 

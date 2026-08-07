@@ -33,8 +33,6 @@ added later needs its own explicit address.
 
 ---
 
----
-
 ## 2. The same error again, on the fix itself
 
 **Symptom.** Identical message on the next apply, but the ordering in the log
@@ -65,8 +63,6 @@ three VMs ask for three different addresses.
 
 ---
 
----
-
 ## 3. NSG rule rename collides at the same priority
 
 **Symptom.** Renaming a `azurerm_network_security_rule` resource label plans an
@@ -87,8 +83,6 @@ moved {
 ```
 
 Safe to delete once applied.
-
----
 
 ---
 
@@ -123,8 +117,6 @@ ARM, and the Windows Server x64 images here will not boot on them.
 
 ---
 
----
-
 ## 5. `PublicIPAddressCannotBeDeleted` - delete ran before detach
 
 **Symptom.** Migrating to Bastion, the public IP deletes failed:
@@ -147,8 +139,6 @@ terraform apply
 
 ---
 
----
-
 ## 6. `Moved resource instances excluded by targeting`
 
 **Symptom.** `-target` was refused outright:
@@ -168,8 +158,6 @@ addresses to add if targeting is genuinely needed.
 
 ---
 
----
-
 ## 7. `admin_password` is ForceNew and stored in state in plaintext
 
 **Not an error hit, a trap identified during review.** Recorded because the
@@ -186,8 +174,6 @@ two things follow.
 
 `sensitive = true` masks display only. It has no effect on what is written to
 state. See `risk-and-limitations.md`.
-
----
 
 ---
 
@@ -221,4 +207,3 @@ $0.19, so the $139/month figure only applies if it runs continuously. The host i
 now gated behind `enable_bastion`, so a working session costs pennies and
 `enable_bastion = false` plus an apply stops the meter.
 
----

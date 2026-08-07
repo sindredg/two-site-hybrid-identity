@@ -7,23 +7,15 @@
 
 ## Current stopping point
 
-Phases 0 to 7 already demonstrate the complete intended outcome: repeatable Azure
-infrastructure, a two-site AD forest, Entra synchronization and hybrid join, Group
-Policy, measured Microsoft security baselines, and Windows LAPS using both AD and
-Entra storage. Implementing tiered administration would add value, but it would
-also expand the project beyond that outcome.
+Phases 0 to 7 deliver the intended outcome: repeatable Azure infrastructure, a
+two-site AD forest, Entra synchronization and hybrid join, Group Policy, measured
+security baselines, and Windows LAPS using both storage backends. The remaining flat
+domain-administrator model is a documented lab limitation, not production-ready
+security.
 
-The remaining flat domain-administrator model is a documented lab limitation, not
-production-ready security. A later continuation should revisit separate
-administrative identities together with privileged access workstations, stronger
-Entra controls, recovery accounts and monitoring.
-
-**Goal:** stop using one Domain Admin account for everything, which is the second
-weakness named in [risk-and-limitations.md](risk-and-limitations.md).
-
-**Why this matters.** Phase 7 removes the shared *local* administrator password.
-This removes the shared *domain* one. Together they close the flat-credential
-pattern the risk register has carried since Phase 0.
+**Goal:** stop using one Domain Admin account for everything, the second weakness
+named in [risk-and-limitations.md](risk-and-limitations.md). Phase 7 removed the
+shared *local* administrator password; this removes the shared *domain* one.
 
 ---
 

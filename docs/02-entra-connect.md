@@ -1,21 +1,16 @@
 # Phase 2. Entra Connect Sync
 
-**Goal:** synchronise the five seeded users from `sindredg.local` into Microsoft
+**Built:** the five seeded users from `sindredg.local` synchronised into Microsoft
 Entra ID, scoped to one OU, so hybrid join in Phase 4 has identities to attach
-devices to.
+devices to. Five users synced with correct UPNs, nothing from the excluded OU
+present, zero errors.
 
 > Installed on CS01. Downloaded from the
 > [Microsoft Entra admin center](https://entra.microsoft.com/#view/Microsoft_AAD_Connect_Provisioning/AADConnectMenuBlade/~/GetStarted),
 > which is now the only distribution point. See
 > [Prerequisites for Microsoft Entra Connect](https://learn.microsoft.com/entra/identity/hybrid/connect/how-to-connect-install-prerequisites).
 
-**Why this matters.** This is the join between the two halves of the lab. Until it
-runs, the forest and the tenant are unrelated directories that happen to share a
-UPN suffix. Afterwards there is one identity with two representations, which is
-what hybrid join in Phase 4 and the Entra-backed LAPS in Phase 7 both build on.
-
-**Status: complete.** Five users synced with correct UPNs, nothing from the
-excluded OU present, zero errors. Problems hit along the way are in
+Problems hit along the way are in
 [troubleshooting/02-entra-connect.md](troubleshooting/02-entra-connect.md).
 
 ---
@@ -93,9 +88,9 @@ All five boxes left unticked. Each is a default accepted deliberately:
 | Custom sync groups | Four local groups: `ADSyncAdmins`, `ADSyncOperators`, `ADSyncBrowse`, `ADSyncPasswordSet` |
 | Import synchronization settings | For migrating config from another Connect server |
 
-The virtual service account matters more than it looks. For a lab whose risk
-register already complains about shared credentials, the passwordless default is
-the right one to accept.
+The virtual service account is the one to note: for a lab whose risk register
+already complains about shared credentials, a default with no password to store or
+rotate is worth accepting.
 
 ### Sign-in method
 
@@ -229,15 +224,15 @@ All permissions are **Application** type, admin-consented at install:
 
 **The password writeback permissions are consented but unused.** The feature was
 left off because it needs P1, yet the app registration still holds the rights.
-Consented permission and enabled functionality are different things, and the gap
-between them is exactly what to look for when auditing a tenant: this app *could*
-write passwords back, it simply is not configured to.
+Consented permission and enabled functionality are different things, and that gap
+is what to look for when auditing a tenant: this app *could* write passwords back,
+it simply is not configured to.
 
 **This replaced the old sync service account.** Older versions created a cloud
 account named `Sync_<server>_<hash>@tenant.onmicrosoft.com` with a stored
-password. Application plus certificate is better on every axis: nothing to leak or
-rotate, permissions auditable in one place, and revocation means deleting an app
-registration rather than hunting for an account.
+password. Application plus certificate leaves nothing to leak or rotate, keeps
+permissions auditable in one place, and makes revocation a deleted app registration
+rather than a hunt for an account.
 
 ---
 
@@ -266,11 +261,10 @@ disabled, which is what choosing PHS means in practice.
 | `MSOL_` connector account | Absent from the cloud | Absent |
 | Sync errors | Zero | Zero |
 
-**The negative checks carry as much weight as the positive ones.** The one row
-reading `On-premises sync enabled: No` is `Service Account`, the cloud-only
-identity used to run the wizard. It is in the tenant but was never in the forest,
-so it correctly reports as not synced. Nothing from `OU=NoSync` appears at all,
-which is what proves the OU filtering did real work rather than being decorative.
+The one row reading `On-premises sync enabled: No` is `Service Account`, the
+cloud-only identity used to run the wizard. It is in the tenant but was never in
+the forest, so it correctly reports as not synced. Nothing from `OU=NoSync` appears
+at all, which is what proves the OU filtering did real work.
 
 ---
 
@@ -305,23 +299,18 @@ configures hybrid Entra join through this same wizard. That is the step Cloud Sy
 could not have supported, and the precondition for backing a LAPS password up to
 Entra ID in Phase 7.
 
-
 ---
 
-## Note: This phase was free
+## Licensing
 
-Connect Sync needs no licence. Microsoft is explicit: *"License requirements for
-using Microsoft Entra Connect V2: Using this feature is free and included in your
-Azure subscription."*
+Connect Sync needs no licence. Microsoft: *"License requirements for using
+Microsoft Entra Connect V2: Using this feature is free and included in your Azure
+subscription."*
 
-What does need licences is Conditional Access (P1), PIM and access reviews (P2),
-and Entra Connect **Health** (P1), which is the monitoring add-on rather than sync
-itself. Password writeback and group writeback also need P1 and are not used here.
+What does need licences: Conditional Access (P1), PIM and access reviews (P2),
+Entra Connect **Health** (P1, the monitoring add-on rather than sync itself), and
+password and group writeback (P1, not used here).
 
-**There is a version deadline.** Every build below **2.5.79.0 stops synchronising
-on 30 September 2026**. This lab installed 2.6.84.0.
-
-**Connect Sync, not Cloud Sync.** Cloud Sync cannot do device synchronization, and
-therefore cannot do hybrid Entra join, which is Phase 4 and the precondition for
-Phase 7. Full comparison in [decisions.md](decisions.md).
+**Version deadline.** Every build below **2.5.79.0 stops synchronising on 30
+September 2026**. This lab installed 2.6.84.0.
 

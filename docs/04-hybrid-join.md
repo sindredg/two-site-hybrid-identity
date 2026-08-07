@@ -1,23 +1,19 @@
 # Phase 4. Sites, domain join and hybrid Entra join
 
-**Goal:** make the directory aware that it now spans two sites, join both branch
-clients to the domain, and register them with Entra ID so they hold an identity in
-Active Directory and a registration in the cloud at the same time.
+**Built:** the directory made aware it spans two sites, both branch clients joined
+to the domain, and both registered with Entra ID so they hold an identity in Active
+Directory and a registration in the cloud at once. That hybrid-joined state is what
+Phase 7 needs: policy arriving from on-premises Group Policy while the secret it
+manages lives in Entra ID.
 
 > Configured through PowerShell and the Entra Connect wizard on CS01. Commands used
 > in this phase: [ad-sites.md](../cmd-sheets/ad-sites.md), [ad-join.md](../cmd-sheets/ad-join.md)
 > and [entra-sync.md](../cmd-sheets/entra-sync.md).
 
-**Why this matters.** A hybrid-joined device is what makes the final phase work:
-policy arrives from on-premises Group Policy while the secret that policy manages
-lives in Entra ID. The sites work exists only because Phase 3 split the lab across
-two regions, and it is the piece that makes the split mean something to the
-directory rather than only to Azure.
+Hybrid join needs no licence. Only the Conditional Access that would consume the
+device state needs P1, and that is where this lab stops.
 
-**No licence required.** Hybrid join is free. Only the Conditional Access that
-would normally consume the device state needs P1, and that is where this lab stops.
-
-**Status: complete.** Two failures along the way, one of them instructive, are in
+Two failures along the way are in
 [troubleshooting/04-hybrid-join.md](troubleshooting/04-hybrid-join.md).
 
 ---
@@ -74,9 +70,9 @@ Get-ADReplicationSubnet -Filter * | Select-Object Name, Site
 | `HQ-SwedenCentral` | 10.10.1.0/24 | DC01, CS01 |
 | `Branch-DenmarkEast` | 10.20.1.0/24 | CL01, CL02 |
 
-**Without this every machine lands in one site and picks a domain controller at
-random**, which happens to work here only because there is exactly one. The subnet
-to site mapping is what gives DC locator, replication topology and site-aware Group
+Without this every machine lands in one site and picks a domain controller at
+random, which happens to work here only because there is exactly one. The subnet to
+site mapping is what gives DC locator, replication topology and site-aware Group
 Policy processing anything to act on.
 
 ---
@@ -107,8 +103,6 @@ nltest /dsgetdc:sindredg.local
 ```
 
 ![CL01 locating a domain controller, with site awareness](images/phase4/cl01-nltest-sites.png)
-
-The most informative single command in the phase:
 
 | Field | Value | What it confirms |
 |---|---|---|
@@ -213,9 +207,9 @@ The forest is `sindredg.local` with **Microsoft Entra ID** as the authentication
 service and `sindredg\labadmin` as the Enterprise Admin writing the object.
 
 **Entra ID is the only valid choice here, and that traces back to Phase 2.** The
-alternative is AD FS, which applies to federated domains. This tenant uses Password
-Hash Synchronization, which makes the domain managed rather than federated, so
-there is no federation server for the other option to point at.
+alternative is AD FS, which applies to federated domains. Password Hash
+Synchronization makes this domain managed rather than federated, so there is no
+federation server for the other option to point at.
 
 ![Configuring](images/phase4/wizard-configuring.png)
 

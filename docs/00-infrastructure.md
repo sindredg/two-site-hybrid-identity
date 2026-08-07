@@ -129,8 +129,8 @@ assumes it runs continuously. Set `enable_bastion = false` and apply when you
 finish a session and the meter stops; a few hours of lab work costs pennies. The
 `AzureBastionSubnet` is unaffected and free.
 
-**Auto-shutdown does not auto-start.** VMs are started manually each session,
-which is the point: it stops a forgotten VM burning credit overnight.
+**Auto-shutdown does not auto-start.** VMs are started manually each session, so a
+forgotten VM cannot burn credit overnight.
 
 `terraform destroy` removes everything. The provider is configured with
 `prevent_deletion_if_contains_resources = false` so the resource group goes in one

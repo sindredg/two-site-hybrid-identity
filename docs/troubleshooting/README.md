@@ -1,11 +1,8 @@
 # Troubleshooting log
 
 Problems hit during the build, their causes, and the fixes. Error strings are
-verbatim so they are searchable.
-
-The phase walkthroughs describe the path that worked. Everything that went wrong
-lives here instead, so the two can be read for different purposes: one to follow,
-one to search when something breaks.
+verbatim so they are searchable. The phase walkthroughs describe the path that
+worked; everything that went wrong lives here.
 
 | Phase | File | Theme |
 |---|---|---|
@@ -19,8 +16,6 @@ one to search when something breaks.
 | 7 | [07-windows-laps.md](07-windows-laps.md) | Two refusals about who you are, and a correct policy ruined by one character |
 
 ## Recurring themes
-
-Worth reading across phases rather than within them.
 
 **A guard that fails closed looks identical to success.** The preflight that
 wrongly reported "already a domain controller" and the `-EnableUsers` switch that

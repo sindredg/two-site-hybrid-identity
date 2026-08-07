@@ -1,7 +1,7 @@
 # Risk and limitations
 
 What this lab does not do safely, and what would have to change if it stopped
-being a single-operator prototype. Recorded rather than pretended away.
+being a single-operator prototype.
 
 ---
 
@@ -74,12 +74,11 @@ implemented.
 
 **The domain half is untouched.** `labadmin` remains the sole member of Domain
 Admins, and LAPS has nothing to say about directory accounts. Planned Phase 8 work
-is intended to address this, so the risk remains open.
+would address this.
 
-**Worth recording as a win.** The encryption principal binds even Domain Admins:
-reading CL01's password as `labadmin` returns the object with
-`DecryptionStatus: Unauthorized`. Forest administration does not confer decryption,
-which is a stronger boundary than a directory ACL alone.
+The encryption principal does bind even Domain Admins: reading CL01's password as
+`labadmin` returns `DecryptionStatus: Unauthorized`. Forest administration does not
+confer decryption, which is a stronger boundary than a directory ACL alone.
 
 This entry stays open until CS01 is covered and the Domain Admin account is split.
 
@@ -101,12 +100,11 @@ before they land. It is a real gate and it did not exist before.
 actually do to live infrastructure. No policy check. No second pair of eyes on an
 apply.
 
-**The missing `plan` is a deliberate trade, not an oversight.** Running one in CI
-needs Azure credentials stored as repository secrets. For a lab whose state already
-holds a plaintext administrator password, adding cloud credentials to GitHub buys a
-marginal review gain for a real increase in blast radius. The honest position is
-that every apply is still local, manual, and reviewed only by whoever is reading
-the terminal.
+**The missing `plan` is a deliberate trade.** Running one in CI needs Azure
+credentials stored as repository secrets. For a lab whose state already holds a
+plaintext administrator password, adding cloud credentials to GitHub buys a marginal
+review gain for a real increase in blast radius. Every apply is therefore local,
+manual, and reviewed only by whoever is reading the terminal.
 
 Outside a prototype the answer is a service principal scoped to one subscription,
 OIDC federation rather than a stored secret, and `plan` posted to the pull request
@@ -158,10 +156,9 @@ unblock Azure CLI authentication. An identity lab whose own tenant runs without
 MFA undercuts the exercise.
 
 **Intended fix:** replacing security defaults with an equivalent Conditional Access
-policy is the textbook answer and is not reachable here, since that needs P1. The
-remaining honest options are to re-enable security defaults and accept the MFA
-prompt on the Azure CLI, or to leave them off and say so plainly, which is what
-this entry does. Tracked as open rather than closed.
+policy needs P1 and is not reachable here. The remaining options are to re-enable
+security defaults and accept the MFA prompt on the Azure CLI, or to leave them off
+and say so, which is what this entry does. Tracked as open.
 
 ---
 
@@ -221,11 +218,10 @@ The account itself should be protected: manageable only by Domain Admins, Kerber
 delegation disabled on it, and parked in an OU where it will not be deleted by
 accident.
 
-**Why this is an open risk rather than a closed task.** A manual 30-day rotation
-with no expiry warning and no enforcement is the kind of thing that lapses
-silently. Seamless SSO was enabled for demonstration value and because it gives
-Phase 5 a real Group Policy task, not because this lab needs it. If the rotation
-is not going to happen, the honest options are to accept the risk explicitly or to
+**Why this stays open.** A manual 30-day rotation with no expiry warning and no
+enforcement lapses silently. Seamless SSO was enabled for demonstration value and
+because it gives Phase 5 a real Group Policy task, not because this lab needs it. If
+the rotation is not going to happen, the options are to accept the risk explicitly or
 disable the feature.
 
 **The Group Policy half is now delivered.** Phase 5's `User-Standard` carries the
@@ -245,17 +241,15 @@ this lab has no backup at all.
 Enable-ADOptionalFeature 'Recycle Bin Feature' -Scope ForestOrConfigurationSet -Target sindredg.local
 ```
 
-**It is irreversible**, which is why it is off by default and why it was worth a
-moment's thought rather than a reflex. For a lab where every object was created by
-a script and could be recreated by re-running it, the case is weaker than in
-production. The case *for* enabling it was that Phase 7 would extend the schema and
-the proposed Phase 8 would have restructured OUs, and an accidental deletion during
-either would otherwise be unrecoverable. That decided it.
+**It is irreversible**, which is why it is off by default. For a lab where every
+object was created by a script that could recreate it, the case is weaker than in
+production. It was enabled because Phase 7 would extend the schema and the proposed
+Phase 8 would restructure OUs, and an accidental deletion during either would
+otherwise be unrecoverable.
 
 **Phase 7 has since run**, adding six attributes and an extended right to the schema.
 That change is itself irreversible and independent of the Recycle Bin, which protects
-deleted objects rather than schema modifications. Two irreversible operations, one
-guarding against accidents in the other, and neither undoable on its own terms.
+deleted objects rather than schema modifications.
 
 Evidence and the confirmation prompt are in
 [05-group-policy.md](05-group-policy.md).

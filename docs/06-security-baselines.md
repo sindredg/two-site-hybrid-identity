@@ -1,17 +1,13 @@
 # Phase 6. Security baselines
 
-**Goal:** apply Microsoft's own hardening guidance to one endpoint, leave the other
-untouched, and measure the difference rather than trusting it.
+**Built:** Microsoft's Server 2022 member server baseline deployed to CL01, CL02 held
+as an untouched control, and the difference between them measured. A single machine
+would only allow asserting that a baseline applied; two make it a comparison.
 
 > Managed from CS01. Commands used in this phase:
 > [group-policy.md](../cmd-sheets/group-policy.md).
 
-**Why two clients.** A single machine only lets you assert that a baseline was
-applied. A hardened machine beside an untouched one turns that assertion into a
-comparison, and the comparison is the deliverable.
-
-**Status: complete.** Baseline deployed to CL01, CL02 held as control, differences
-recorded. Problems hit along the way are in
+Problems hit along the way are in
 [troubleshooting/06-security-baselines.md](troubleshooting/06-security-baselines.md).
 
 ---
@@ -136,9 +132,8 @@ the `10.10.1.0/24, 10.20.1.0/24` scope it was given in Phase 5. The WMI rules be
 the same way.
 
 **Neither wins, because they are not competing.** Profile settings and rule sets are
-two separate policy areas that merge. A baseline can harden the profile without
-touching a single rule, which is worth knowing before assuming a baseline will
-flatten everything configured before it.
+two separate policy areas that merge, so a baseline can harden the profile without
+touching a single rule.
 
 ### SmartScreen, found by accident
 
@@ -173,9 +168,8 @@ It was dropped once the tool cost more than the answer was worth:
 - On CL01 the baseline blocked it from running at all
 
 **Group Policy Modeling answered the same question with less friction**, and its
-reports are shareable HTML rather than spreadsheets. Recorded as a deliberate stop
-rather than a gap: the phase asks what the baseline changed, and the modeling reports
-say so with the winning GPO named for every setting.
+reports are shareable HTML rather than spreadsheets. It names the winning GPO for
+every setting, which is what this phase needed.
 
 ---
 

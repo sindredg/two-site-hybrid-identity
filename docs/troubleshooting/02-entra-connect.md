@@ -56,8 +56,6 @@ the Group Policy Client hang, where the message named `gpsvc` and the cause was
 
 ---
 
----
-
 ## 2. Connect Sync refuses a Domain Admin as the connector account
 
 Supplying an existing Domain Admin on the AD forest account dialog
@@ -91,8 +89,6 @@ Replicate Directory Changes and Replicate Directory Changes All, and nothing els
 **Lesson.** The installer enforced least privilege before the lab got round to it.
 The same pattern the risk register flags for `labadmin` is what Phase 8 exists to
 fix.
-
----
 
 ---
 

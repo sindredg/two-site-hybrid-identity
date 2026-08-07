@@ -36,8 +36,6 @@ has to stay on DHCP to receive it.
 
 ---
 
----
-
 ## 2. Preflight wrongly reported "already a domain controller"
 
 **Symptom.** After the failed promotion, re-running the script did nothing:
@@ -66,8 +64,6 @@ if ($role -in 4, 5) { ... }
 
 **Lesson.** The presence of a service is not evidence the feature is configured. A
 guard that fails closed looks identical to success, which is worse than no guard.
-
----
 
 ---
 
@@ -118,8 +114,6 @@ should report `Start: 2` and `DelayedAutostart: 1`.
 
 ---
 
----
-
 ## 4. `-EnableUsers` silently did nothing on a re-run
 
 **Symptom.** `02-ad-structure.ps1` was run a second time with `-EnableUsers`, as
@@ -157,8 +151,6 @@ Get-ADUser -Filter * -SearchBase 'OU=Users,OU=Sync,DC=sindredg,DC=local' | Enabl
 **Lesson.** An idempotency guard has to cover every attribute the script claims to
 manage, not just whether the object exists. The real test is not "does a second run
 error" but "does a second run converge".
-
----
 
 ---
 
@@ -212,4 +204,3 @@ entry above. Both produced confident, wrong output rather than an error, which i
 the harder failure mode to notice.
 
 
----

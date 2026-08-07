@@ -1,27 +1,20 @@
 # Phase 1. Active Directory environment
 
-**Goal:** promote DC01 to a new forest, point the virtual network at it, join CS01
-to the domain, and build a directory structure realistic enough that scoped
-synchronisation and Group Policy targeting are meaningful in later phases.
+**Built:** DC01 promoted to a new forest, the virtual network pointed at it, CS01
+joined, and a directory structure the later phases target for scoped
+synchronisation and Group Policy.
 
 > Scripts in `scripts/ad-bootstrap/`, run over Bastion. See
 > [Install a new Active Directory forest](https://learn.microsoft.com/windows-server/identity/ad-ds/deploy/install-a-new-windows-server-2012-active-directory-forest--level-200-).
 
-**Why this matters.** Everything after this depends on it. Entra Connect has
-nothing to synchronise without a directory, hybrid join has no domain to join, and
-Group Policy has nothing to link to. The OU layout decided here is what every
-later phase targets, which is why it is designed rather than accumulated.
+**Two weaknesses against production.** `sindredg.local` is not routable and cannot
+be verified in Entra, so the forest domain and the UPN suffix differ and users need
+retargeting before sync ([decisions.md](decisions.md)). And a single local
+administrator credential is reused across all VMs and becomes Domain Admin after
+promotion ([risk-and-limitations.md](risk-and-limitations.md)).
 
-**Trade-off from best practice.** Two things here are weaker than production.
-`sindredg.local` is not routable and cannot be verified in Entra, so the forest
-domain and the UPN suffix differ and the users need retargeting before sync; see
-[decisions.md](decisions.md). And a single local administrator credential is reused
-across all VMs and becomes Domain Admin after promotion, which is the flat
-credential pattern hybrid identity work exists to argue against; see
-[risk-and-limitations.md](risk-and-limitations.md).
-
-**Status: complete.** Problems hit along the way, including two bugs in our own
-scripts, are in [troubleshooting/01-ad-environment.md](troubleshooting/01-ad-environment.md).
+Problems hit along the way, including two bugs in our own scripts, are in
+[troubleshooting/01-ad-environment.md](troubleshooting/01-ad-environment.md).
 
 ---
 
@@ -52,16 +45,15 @@ scripts, are in [troubleshooting/01-ad-environment.md](troubleshooting/01-ad-env
 | `dvolkov` | IT | Service Desk Analyst | `sg-helpdesk` |
 | `erossi` | External | Contractor | `sg-contractors` |
 
-Departments and titles are populated deliberately. They give Group Policy
-something realistic to filter on, and they make the directory look like a
-directory rather than five placeholder accounts.
+Departments and titles are populated so Group Policy has something realistic to
+filter on.
 
 ---
 
 ## 2. Promoting DC01
 
 DC01 runs Server Core, so a Bastion session lands on a command prompt rather than
-a desktop. That is the image working as intended.
+a desktop.
 
 The script checks the primary IPv4 address matches the `10.10.1.4` pinned in
 Terraform, then installs the AD DS role.
@@ -81,11 +73,10 @@ recoverable. It goes in the password manager immediately.
 Install-ADDSForest -DomainName sindredg.local -DomainNetbiosName SINDREDG -InstallDns -DomainMode WinThreshold -ForestMode WinThreshold -Force
 ```
 
-**`-InstallDns` matters more than it looks.** A domain controller has to answer the
-SRV record lookups clients use to find it. A machine that only knows the name
-`sindredg.local` has no way to discover DC01's address unless something
-authoritative for that zone answers. That is why section 3 points the whole virtual
-network at 10.10.1.4, and why the DC has to be its own DNS server first.
+**`-InstallDns`.** A domain controller has to answer the SRV record lookups clients
+use to find it. A machine that only knows the name `sindredg.local` cannot discover
+DC01's address unless something authoritative for that zone answers, which is why
+section 3 points the whole virtual network at 10.10.1.4.
 
 ![AD DS installed, restarting](images/phase1/addsforest-restart.png)
 
@@ -206,18 +197,16 @@ Six OUs, four groups, five users, each added to its group. Users are created
 **disabled** on purpose, so the sync scope can be reviewed before any account is
 usable. Re-run with `-EnableUsers` once it is confirmed.
 
-**The `Sync` and `NoSync` split is the point.** Entra Connect gets scoped to
-`OU=Sync` in Phase 2, so `ServiceAccounts` under `NoSync` demonstrates filtering
-rather than syncing everything and proving nothing.
+Entra Connect gets scoped to `OU=Sync` in Phase 2, so `ServiceAccounts` under
+`NoSync` is what demonstrates the filtering actually works.
 
 A second run changes nothing:
 
 ![Second run reports exists](images/phase1/ad-structure-idempotent.png)
 
-That is the idempotency check, and it is the closest thing the PowerShell layer has
-to `terraform plan`. The scripts check every attribute they claim to manage, not
-just whether an object exists, which is a property they acquired the hard way; see
-the troubleshooting log.
+That idempotency check is the closest the PowerShell layer gets to `terraform
+plan`. The scripts check every attribute they claim to manage, not just whether an
+object exists, which they acquired the hard way; see the troubleshooting log.
 
 ---
 
@@ -292,9 +281,5 @@ synchronisation later, when the error surfaces hours after the cause:
 ## Next
 
 [Phase 2](02-entra-connect.md) installs Entra Connect Sync on CS01 and
-synchronises the five seeded users into Microsoft Entra ID. It needs no licence:
-sync is free with any Azure subscription.
-
-The lab runs as far as hybrid join and Windows LAPS, then stops at Conditional
-Access, which needs Entra ID P1. That boundary is recorded in
-[decisions.md](decisions.md).
+synchronises the five seeded users into Microsoft Entra ID. Sync is free with any
+Azure subscription.
