@@ -13,6 +13,7 @@ can stay a narrative and this can stay copy-pasteable.
 | [entra-sync.md](entra-sync.md) | Connect Sync cycles, scheduler, hybrid join, device state | CS01 and the clients |
 | [laps.md](laps.md) | Windows LAPS schema, permissions, policy, retrieval, diagnostics | CS01 and the clients |
 | [group-policy.md](group-policy.md) | Central Store, GPOs, links, filtering, RSoP, backup | CS01 and the clients |
+| [tiered-admin.md](tiered-admin.md) | Tier OUs and accounts, deny-logon rights, link-state rollback, logon-failure forensics | CS01, and the workstation for recovery |
 
 ## Conventions
 
