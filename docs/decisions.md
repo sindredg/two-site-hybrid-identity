@@ -399,11 +399,148 @@ exactly the shared credential the risk register names.
 
 ---
 
+## 18. Tier 0 has no representation in Entra ID
+
+**Decision.** Admin accounts live under `OU=Admin,OU=NoSync`. `sg-tier0-admins` is
+created there too, rather than beside the other `sg-` groups in `OU=Groups,OU=Sync`.
+
+**Why the inconsistency is deliberate.** Connect Sync is scoped to `OU=Sync`. A
+privileged on-premises account with a cloud object is a second attack path onto the same
+credential, so none of the tier accounts sync. Tier 0 goes further: neither the group nor
+its member exists in the tenant at all. If the tenant were compromised there is nothing
+there to find.
+
+**Rejected: keeping all `sg-` groups together.** Consistent naming, and it would have put
+a Tier 0 group in the cloud for no operational benefit. `sg-it-admins` and `sg-helpdesk`
+do sync, because Phase 1 created them as ordinary role groups and Phase 2 scoped them in.
+`t1-admin` joining `sg-it-admins` produces a synced group whose member is out of scope,
+which is the clearest illustration of what OU scoping actually does.
+
+**Given up.** A reader scanning the OU tree sees three `sg-` groups in one place and one
+in another. That is why this entry exists.
+
+---
+
+## 19. Deny rules name groups, not accounts
+
+**Decision.** Every deny-logon right names `sg-tier0-admins`, `sg-it-admins` or
+`sg-helpdesk`. No individual account appears in any of the three GPOs.
+
+**Why.** Deny rights are evaluated against every SID in the access token, and group
+memberships are in the token. Naming the group covers its members, and an account added
+to a tier group later is covered without editing a GPO.
+
+**Rejected: naming both.** The first pass listed `sg-it-admins` and `t1-admin` side by
+side. Some real tiered builds do this as defence against someone being removed from a
+group. It doubles the entries and the maintenance, and in a lab with one account per tier
+it buys nothing.
+
+**Given up.** Tier membership is now entirely a property of group membership, so removing
+an account from a group silently removes its restriction as well as its access.
+
+---
+
+## 20. Deny network logon downward, and not at all on domain controllers
+
+**Decision.** Tier 1 and Tier 2 GPOs deny all five logon types. The Tier 0 GPO denies
+interactive and Remote Desktop only.
+
+**Why network is omitted on domain controllers.** A DC is not only a logon target. It is
+the SYSVOL file server every domain member reads Group Policy from, and the LDAP endpoint
+RSAT on CS01 talks to. Denying network logon there for Tier 1 and Tier 2 would break
+Group Policy retrieval and RSAT for the accounts that need them. Microsoft's guidance
+includes it because Tier 1 and 2 admin accounts have no such need in a production estate
+with dedicated management hosts. In a four-machine lab where `sg-it-admins` does
+directory work from CS01, the cost lands on the operator.
+
+**Why it is kept downward.** A Tier 0 credential that cannot make a network logon to a
+workstation cannot be replayed from one. Tier 0 has no work to do there, so nothing is
+lost.
+
+**Given up.** A Tier 1 or Tier 2 credential can still reach a domain controller over the
+network. That is a real gap in the model as built, accepted because closing it breaks the
+lab's only management path.
+
+**Not demonstrated.** The network denial on the clients could not be tested from CS01.
+`net use \\CL01\C$` returns `System error 53`, network path not found, because the Phase 6
+baseline firewall drops SMB before the right is reached.
+
+---
+
+## 21. Local Administrators by Preferences, with an explicit Remove
+
+**Decision.** `Tier1-Local-Admins` and `Tier2-Local-Admins` use Group Policy Preferences,
+Local Users and Groups, action **Update**, with both delete checkboxes clear. Each also
+names the other tier's group with the **Remove from this group** action.
+
+**Rejected: Restricted Groups.** Its *Members of this group* list replaces membership
+wholesale. `Domain Admins` would be stripped from every machine in scope. The same
+behaviour is available in Preferences behind the delete checkboxes, but off by default
+rather than on.
+
+**Why the explicit Remove.** Preferences do not revert. Removing a member from the item
+stops it being added again and does not remove it from a machine that already has it.
+Without a Remove entry, local Administrators is additive only and a machine that acquires
+a wrong administrator keeps it. Both halves of this cost time and are in the
+troubleshooting log.
+
+**Given up.** `Domain Admins` is deliberately not in either Remove list. Tier 0 on a
+lower-tier machine is handled by the deny-logon rights instead, which make its local
+membership irrelevant.
+
+---
+
+## 22. Two baseline settings generalised to both clients
+
+**Decision.** `Tier2-Logon-Restrictions` links at `OU=Workstations` at link order 1 and
+carries `S-1-5-113` and `S-1-5-114` forward from `Baseline-MemberServer-2022`.
+
+**Why it had to.** User Rights Assignment does not merge across GPOs. The
+higher-precedence GPO supplies the entire member list for a right and the other's entries
+stop existing. Without carrying them, the Phase 6 result that CL01 refuses the shared
+local administrator over Bastion would have silently reverted.
+
+**What it costs.** The baseline is security-filtered to CL01. The tier GPO is not, so
+CL02 gains those two settings. Phase 6's comparison holds as a measurement taken on its
+own date, and from Phase 8 onward CL02 is a control for everything in the baseline
+*except* those two user rights.
+
+**Rejected: splitting `OU=Workstations` into hardened and control sub-OUs.** It preserves
+both cleanly. That OU's distinguished name appears in Phases 5, 6 and 7 including the
+LAPS ACLs, and rewriting all of it for a two-setting distinction was not judged worth it.
+
+**Rejected: leaving RDP and network denies out of the tier model.** It keeps CL02
+pristine and removes the control against a Tier 0 credential being replayed from a
+workstation, which is the most valuable thing the phase does.
+
+---
+
+## 23. `labadmin` retired to break-glass rather than stripped
+
+**Decision.** `labadmin` keeps its group memberships and gets a new password stored
+outside the repository and outside Terraform, a description saying what it is for, and no
+routine use. It is named in no deny rule, so it reaches every machine.
+
+**Why not remove its privileges.** It is RID 500. It cannot be deleted, cannot be locked
+out by policy, and is the account that still works when Kerberos, DNS or a Group Policy
+change have broken everything else. A tier model with no exempt account has no recovery
+path, and this phase needed a recovery path twice.
+
+**Given up.** A single credential still exists which, if stolen, defeats the whole model.
+Nothing in the lab enforces that it stays unused. It is entry 12 in the risk register
+rather than a solved problem.
+
+**Its limit.** The same argument applies one layer up and is not solved at all. Azure
+`run-command` executes as SYSTEM with no logon, so subscription rights are forest rights
+regardless of anything in this document. Risk register entry 10.
+
+---
+
 ## Pending decisions
 
 | Decision | Phase | Notes |
 |---|---|---|
-| Whether the GPO estate is exported into the repository | 7 | Bastion Basic offers no file transfer, so any export needs a storage account and a SAS. Deferred rather than half-built |
-| Whether to bring CS01 under LAPS | 8 | It sits in `CN=Computers`, which no GPO can be linked to. The planned OU restructuring has not been implemented |
+| Whether the GPO estate is exported into the repository | 7 | Bastion Basic offers no file transfer, so any export needs a storage account and a SAS. Deferred rather than half-built. Phase 8 added five more GPOs to an estate that exists only inside the lab |
 | Whether to fold HQ into the shared VM module | 5 | Needs `moved` blocks against a promoted domain controller. Worth doing only on its own |
-| Whether Phase 8 happens at all | Deferred | Not implemented in the current milestone |
+| Whether to add a second member to `sg-it-admins` | 8 | It is now a single account and the encryption principal for two machines' LAPS passwords. Recoverable, since encryption is to the group SID, but a single point of failure |
+| Whether a Tier 0 administrative workstation is worth a fifth VM | 8 | Without one, Group Policy editing falls back to `labadmin`, because `t0-admin` cannot sign into the machine GPMC runs on |

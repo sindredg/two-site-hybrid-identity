@@ -50,7 +50,7 @@ implement one, so this cannot be solved in the configuration.
 
 ---
 
-## 3. One password across every VM, now partially fixed
+## 3. One password across every VM, closed in Phase 8
 
 The same local administrator credential was used on every machine, and became the
 Domain Admin password after promotion. Exactly the flat-credential pattern that
@@ -63,24 +63,28 @@ random rotating password, encrypted at rest and readable only by `sg-it-admins`:
 |---|---|---|
 | CL01 | Managed by LAPS, encrypted, in Active Directory | Fixed |
 | CL02 | Managed by LAPS, in Entra ID | Fixed |
-| CS01 | Still the shared Terraform password | **Open** |
+| CS01 | Managed by LAPS, encrypted, in Active Directory | Fixed in Phase 8 |
 | DC01 | No local accounts exist; promotion migrated them into the directory | Not applicable |
 
-**CS01 is the remaining gap and it is structural.** Its computer object sits in
-`CN=Computers` because it joined the domain in Phase 1 before the OU structure
-existed, and a GPO cannot be linked to a container. Moving it into an OU is the fix.
-The planned Phase 8 work would perform that restructuring, but it has not yet been
-implemented.
+**CS01 was structural, not an oversight.** Its computer object sat in `CN=Computers`
+because it joined the domain in Phase 1 before the OU structure existed, and a GPO
+cannot be linked to a container. Phase 8 moved it to `OU=Servers` and applied the same
+LAPS pattern. The password in `terraform.tfstate` no longer opens any machine in the
+lab.
 
-**The domain half is untouched.** `labadmin` remains the sole member of Domain
-Admins, and LAPS has nothing to say about directory accounts. Planned Phase 8 work
-would address this.
+**The domain half is now split.** `Domain Admins` holds `t0-admin` and `labadmin`.
+`labadmin` has a new password, stored outside the repository and outside Terraform, and
+is retired to break-glass use. Deny-logon rights stop any tier account reaching a
+machine outside its own tier.
 
 The encryption principal does bind even Domain Admins: reading CL01's password as
 `labadmin` returns `DecryptionStatus: Unauthorized`. Forest administration does not
 confer decryption, which is a stronger boundary than a directory ACL alone.
 
-This entry stays open until CS01 is covered and the Domain Admin account is split.
+**Closed in Phase 8.** Two things remain accepted rather than fixed, and are recorded
+below as separate entries: `labadmin` is deliberately exempt from every deny rule so
+that a recovery path exists, and `sg-it-admins` now holds a single account while being
+the encryption principal for two machines' LAPS passwords.
 
 ---
 
@@ -253,3 +257,66 @@ deleted objects rather than schema modifications.
 
 Evidence and the confirmation prompt are in
 [05-group-policy.md](05-group-policy.md).
+
+---
+
+## 10. The Azure control plane is an unreduced path to Tier 0
+
+Phase 8 builds a tiered administration model inside Active Directory. It does not
+constrain the layer underneath it.
+
+```bash
+az vm run-command invoke -g rg-hybridid-swedencentral -n DC01 --command-id RunPowerShellScript --scripts "whoami"
+```
+
+That returns `nt authority\system`. The request goes to Azure Resource Manager, which
+hands the script to the VM agent already running inside Windows. No logon takes place,
+so no User Rights Assignment applies. Anyone holding `Virtual Machine Contributor` on
+the subscription can run SYSTEM code on a domain controller and therefore owns the
+forest, without ever authenticating to Active Directory.
+
+This is not theoretical. It was used twice during Phase 8, once to recover CS01 after
+every domain account was locked out of it.
+
+**Why it is not removed.** It is the only recovery path when the management machine is
+the broken one. Removing it would leave no way back from a mistake in the deny rules.
+
+**What would reduce it in a real environment:** separate subscriptions for Tier 0
+assets, Privileged Identity Management on the Azure roles so `Virtual Machine
+Contributor` is not standing access, and deny assignments on the domain controller
+resource. All three need licensing this tenant does not have.
+
+**Attribution differs too.** Work done through `run-command` appears in the Windows
+logs as `NT AUTHORITY\SYSTEM` with no user attached. The only record of who did it is
+in the Azure Activity Log, on the other side of the boundary.
+
+---
+
+## 11. `sg-it-admins` holds one account and decrypts two machines
+
+After Phase 8 removed `cdubois`, `sg-it-admins` contains only `t1-admin`. That group is
+the encryption principal for CL01's and CS01's LAPS passwords. If `t1-admin` is lost,
+those passwords cannot be decrypted by anyone, including Domain Admins, which returns
+`DecryptionStatus: Unauthorized`.
+
+**It is recoverable.** Encryption is to the group SID, not to the account, so adding any
+member to `sg-it-admins` restores decryption of existing passwords. A second account in
+the group would remove the single point of failure entirely, and was not added because
+the lab has no second person.
+
+---
+
+## 12. `labadmin` is exempt from every deny rule
+
+The tier model denies cross-tier logon for `sg-tier0-admins`, `sg-it-admins` and
+`sg-helpdesk`. `labadmin` belongs to none of them, so it reaches every machine in the
+lab.
+
+That is deliberate. It is RID 500, cannot be deleted, cannot be locked out by policy,
+and is the account that still works when Kerberos, DNS or a Group Policy change have
+broken everything else. A tier model with no exempt account has no recovery path.
+
+The cost is that a single credential still exists which, if stolen, defeats the whole
+model. What reduces that in practice is that it is no longer used for routine work, its
+password exists in one offline place, and any use of it is by definition an incident.
+None of that is enforced by the lab, so it stays an open risk rather than a closed one.

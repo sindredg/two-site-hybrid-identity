@@ -333,7 +333,7 @@ Setting the account name explicitly would have been redundant.
 |---|---|
 | CL01 | Managed by LAPS, encrypted to `sg-it-admins`, stored in Active Directory |
 | CL02 | Managed by LAPS, stored in Entra ID |
-| CS01 | **Still the shared Terraform password.** It sits in `CN=Computers`, which no GPO can be linked to |
+| CS01 | **Still the shared Terraform password at the end of this phase.** It sits in `CN=Computers`, which no GPO can be linked to. Covered in Phase 8 |
 | DC01 | **Has no local accounts.** Promotion migrates them into the directory |
 
 DC01 is not an oversight. A domain controller has no local user database, which is
@@ -343,8 +343,9 @@ thing LAPS can manage there.
 
 CS01 is a real gap, and fixing it means moving the computer object out of
 `CN=Computers` into an OU. That is the same container-versus-OU constraint Phase 5
-documented. **Phase 8 has since moved it** to `OU=Servers`, which removes the blocker;
-the LAPS policy for that OU is not yet applied, so the row above still stands.
+documented. **Phase 8 moved it** to `OU=Servers` and applied the same LAPS pattern
+there, so the row above describes the state at the end of this phase rather than the
+state of the lab.
 
 ### Captured in Phase 8
 
@@ -387,7 +388,7 @@ not a one-shot.
 
 [Phase 8](08-tiered-administration.md) continues from here: it splits the single Domain
 Admin account into a tiered model and addresses CS01's unmanaged local administrator.
-It is **partly built**: the tier structure exists and CS01 has been relocated, but no
-logon has been denied and CS01's password is still the shared Terraform one. Until that
+It is **complete**: no account reaches a machine outside its tier, CS01's local
+administrator is LAPS-managed, and `labadmin` is retired to break-glass. Until that
 work is finished those controls remain explicit residual risk rather than a completed
 claim, and everything in this document holds exactly as written.

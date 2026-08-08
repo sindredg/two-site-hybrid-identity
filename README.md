@@ -4,9 +4,9 @@ An Active Directory forest in Azure, synchronised to Microsoft Entra ID, serving
 a second region over VNet peering, with hybrid-joined endpoints managed and hardened through Group
 Policy, Microsoft security baselines and Windows LAPS.
 
-**Phases 0 to 7 are built and verified. Phase 8 is in progress.** The tiered structure exists and
-CS01 is now under LAPS, so no machine still holds the shared build password. The deny-logon
-enforcement is not yet linked. See the
+**All nine phases are built and verified.** The forest is synchronised, the endpoints are
+hardened, every local administrator password rotates on its own, and administration is split
+into three tiers with enforced logon boundaries. See the
 [phase documentation](docs/), [decisions](docs/decisions.md),
 [risk register](docs/risk-and-limitations.md) and
 [troubleshooting log](docs/troubleshooting/README.md).
@@ -142,7 +142,7 @@ error strings verbatim so they are searchable.
 | [05-group-policy.md](docs/05-group-policy.md) | Central Store, linked GPOs, verified on the clients | **Complete** |
 | [06-security-baselines.md](docs/06-security-baselines.md) | Microsoft baselines, hardened against control | **Complete** |
 | [07-windows-laps.md](docs/07-windows-laps.md) | LAPS to Active Directory and to Entra ID | **Complete** |
-| [08-tiered-administration.md](docs/08-tiered-administration.md) | Tier 0/1/2 logon boundaries | **In progress** |
+| [08-tiered-administration.md](docs/08-tiered-administration.md) | Tier 0/1/2 logon boundaries | **Complete** |
 
 ---
 
@@ -172,14 +172,16 @@ and CL02 storing its in Entra ID. Retrieving CL01's password as a Domain Admin r
 does not confer decryption.
 
 **Tiered administration (Phase 8), in progress.** Tier 0/1/2 OUs, groups and admin accounts exist
-outside sync scope, and each tier account has been proven against its own machine. CS01 has been
-moved out of `CN=Computers`, the container that no GPO can target, and brought under Windows LAPS.
-That was the last machine holding the shared Terraform password, so the credential in state no
-longer opens anything. The enforcement half is not built: no logon has been denied to anybody, and
-`labadmin` is still the working Domain Admin. The Azure control plane also remains an unreduced
-path to Tier 0, since `run-command` executes as SYSTEM without a logon. Residual risk is in
-[risk-and-limitations.md](docs/risk-and-limitations.md); remaining steps are in
-[08-tiered-administration.md](docs/08-tiered-administration.md) section 14.
+outside sync scope, and deny-logon rights enforce the boundary in both directions. A cross-tier
+logon returns `1385: the user has not been granted the requested logon type at this computer`,
+which is the evidence the phase exists to produce. CS01 was moved out of `CN=Computers`, the
+container that no GPO can target, and brought under Windows LAPS, so the credential in Terraform
+state no longer opens anything. `labadmin` is retired to break-glass.
+
+Two things the model does not solve. `labadmin` is exempt from every deny rule by design, because
+a tier model with no exempt account has no recovery path. And the Azure control plane sits above
+all of it: `run-command` executes as SYSTEM without a logon, so subscription rights are forest
+rights. Both are entries in [risk-and-limitations.md](docs/risk-and-limitations.md).
 
 ---
 
