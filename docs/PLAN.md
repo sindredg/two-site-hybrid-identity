@@ -17,7 +17,7 @@ phase carried forward.
 | 5 | Group Policy foundation | Completed | [05-group-policy.md](docs/05-group-policy.md) |
 | 6 | Security baselines | Completed | [06-security-baselines.md](docs/06-security-baselines.md) |
 | 7 | Windows LAPS, both backends | Completed | [07-windows-laps.md](docs/07-windows-laps.md) |
-| 8 | Tiered administration | **Not implemented** | [08-tiered-administration.md](docs/08-tiered-administration.md) |
+| 8 | Tiered administration | **In progress** | [08-tiered-administration.md](docs/08-tiered-administration.md) |
 
 Each phase document ends in an exit-criteria table with the command that proves it.
 
@@ -55,8 +55,11 @@ from starting. See `decisions.md` entry 16.
 measures against, so user configuration on it would weaken the comparison. The GPO is built,
 filtered and unlinked.
 
-**Two Phase 7 verifications are not captured:** a successful decryption as `sg-it-admins`, and a
-rotation.
+**Two Phase 7 verifications were captured late,** in Phase 8 rather than Phase 7: a successful
+decryption as `sg-it-admins`, and a rotation. Both needed an account inside `sg-it-admins`, and
+Phase 8 removes that membership from `cdubois` — so the evidence was banked immediately before the
+change that would have made it impossible. See
+[08-tiered-administration.md](docs/08-tiered-administration.md) section 3.
 
 ## Where the lab stops
 
@@ -64,9 +67,12 @@ Conditional Access is the natural next step after hybrid join: require a hybrid-
 admin access, and the two halves of this lab become one control. It needs Entra ID P1, which is
 unobtainable here.
 
-Phase 8 would split the single Domain Admin account into a tiered model and bring CS01 under LAPS.
-Not executed or validated; the design is in
-[08-tiered-administration.md](docs/08-tiered-administration.md) and the residual risk is in
+Phase 8 splits the single Domain Admin account into a tiered model and brings CS01 under LAPS. It
+is **partly built**: the tier OUs, groups and accounts exist, CS01 has been moved out of
+`CN=Computers`, and the existing deny-logon rights have been surveyed. No logon has been denied to
+anybody yet and no policy authored in that phase is linked, so every earlier phase still behaves as
+its own document describes. Remaining steps and the residual risk are in
+[08-tiered-administration.md](docs/08-tiered-administration.md) section 9 and
 [docs/risk-and-limitations.md](docs/risk-and-limitations.md).
 
 ## Operating notes

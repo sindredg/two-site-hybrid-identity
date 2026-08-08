@@ -23,8 +23,8 @@ endpoint using `ms-Mcs-AdmPwd` attributes. Windows LAPS is in-box on Server 2019
 later, uses `msLAPS-*` attributes, supports encryption at rest, and can target Entra
 ID. Nothing is installed on any machine in this phase.
 
-Two verifications are outstanding, see section 8. Failures along the way are in
-[troubleshooting/07-windows-laps.md](troubleshooting/07-windows-laps.md).
+Two verifications were captured later, during Phase 8, see section 8. Failures along the
+way are in [troubleshooting/07-windows-laps.md](troubleshooting/07-windows-laps.md).
 
 ---
 
@@ -343,19 +343,26 @@ thing LAPS can manage there.
 
 CS01 is a real gap, and fixing it means moving the computer object out of
 `CN=Computers` into an OU. That is the same container-versus-OU constraint Phase 5
-documented. The planned Phase 8 work is intended to address it later.
+documented. **Phase 8 has since moved it** to `OU=Servers`, which removes the blocker;
+the LAPS policy for that OU is not yet applied, so the row above still stands.
 
-### Outstanding
+### Captured in Phase 8
 
-Two verifications are not captured.
+Two verifications were missing when this phase closed. Both needed an account inside
+`sg-it-admins`, and Phase 8 retires that membership from `cdubois` — so they were run
+immediately before the change that would have made them impossible. Evidence is in
+[08-tiered-administration.md](08-tiered-administration.md) section 3.
 
 **The positive half of the permission test.** The refusal above is the negative half.
-Retrieving the same password as `cdubois`, a member of `sg-it-admins` and not a
-Domain Admin, would complete the pair. One succeeds and one does not, neither of them
-privileged, is what demonstrates the boundary end to end.
+Retrieving the same password as `cdubois` — a member of `sg-it-admins`, not a Domain
+Admin, and not even elevated — returns `DecryptionStatus: Success`. One succeeds and one
+does not, neither explained by how much authority the caller holds, which is what
+demonstrates the boundary end to end.
 
-**Rotation.** `Reset-LapsPassword` on a client followed by a second read would prove
-this is not a one-shot.
+**Rotation.** `Reset-LapsPassword` on CL01 followed by a second read returned a
+different password, with `PasswordUpdateTime` and `ExpirationTimestamp` both advanced by
+the 30-day window configured here. The age policy is what drives rotation, and this is
+not a one-shot.
 
 ---
 
@@ -371,15 +378,16 @@ this is not a one-shot.
 | CL02 password in Entra ID | Local administrator password recovery lists CL02 | Done |
 | Encryption boundary holds against Domain Admins | `DecryptionStatus: Unauthorized` | Done |
 | LAPS manages the real credential | `labadmin` confirmed as RID 500 | Done |
-| Decryption succeeds for `sg-it-admins` | Not captured | Outstanding |
-| Rotation verified | Not captured | Outstanding |
+| Decryption succeeds for `sg-it-admins` | `DecryptionStatus: Success` as `cdubois` | Done, in Phase 8 |
+| Rotation verified | Password and both timestamps advanced after `Reset-LapsPassword` | Done, in Phase 8 |
 
 ---
 
 ## Current milestone boundary
 
-The current tested milestone ends here. Planned
-[Phase 8 work](08-tiered-administration.md) would split the single Domain Admin
-account into a tiered model and address CS01's unmanaged local administrator, but
-those controls have not been implemented or validated. They remain explicit
-residual risk and a possible future continuation rather than a completed claim.
+[Phase 8](08-tiered-administration.md) continues from here: it splits the single Domain
+Admin account into a tiered model and addresses CS01's unmanaged local administrator.
+It is **partly built** — the tier structure exists and CS01 has been relocated, but no
+logon has been denied and CS01's password is still the shared Terraform one. Until that
+work is finished those controls remain explicit residual risk rather than a completed
+claim, and everything in this document holds exactly as written.
