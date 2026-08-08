@@ -81,6 +81,10 @@ Invoke-LapsPolicyProcessing
 
 LAPS also runs its own cycle hourly. This only forces it early.
 
+**It does not fetch Group Policy.** It re-reads the policy the machine already holds, so
+after changing a GPO it must follow `gpupdate /force` rather than replace it. Run on its
+own it will report the old policy and look like the change did not work.
+
 **Elevation, not just membership.** UAC issues administrators a filtered token, so
 the cmdlet fails for a user who is in Administrators but not running elevated.
 
@@ -135,7 +139,7 @@ Get-WinEvent -LogName "Microsoft-Windows-LAPS/Operational" -MaxEvents 20 | Selec
 | 10005 | Processing failed, with an error code |
 | 10015 | Why the password needed updating. Several reasons at once is normal on a first run |
 | 10017 | Failed to write the password to Active Directory |
-| 10024 | Policy configured as disabled, meaning no policy reached this machine |
+| 10024 | The effective policy is disabled. Either no policy reached the machine, **or** one did with `Configure password backup directory` set to `Disabled`. Check the GPO's dropdown value before assuming the policy is missing |
 | 10035 | The encryption principal could not be resolved, and names the value |
 
 ```powershell

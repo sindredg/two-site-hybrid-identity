@@ -38,7 +38,7 @@ Each phase document ends in an exit-criteria table with the command that proves 
 | Security filtering rehearsal | Phase 5, on `Loopback-Demo` | Phase 6 and 7, used for real |
 | `LAPS.admx` in the Central Store | Phase 5 | Phase 7, needed to author the policy |
 | Roll the Seamless SSO Kerberos key every 30 days | Phase 2 | **Open**, manual, see the risk register |
-| Shared local administrator credential | Phase 0 | **Partly.** CL01 and CL02 covered by Phase 7; CS01 and the domain `labadmin` are Phase 8 |
+| Shared local administrator credential | Phase 0 | **Closed for local accounts.** CL01 and CL02 in Phase 7, CS01 in Phase 8. The domain `labadmin` remains |
 | Export the GPO estate into the repo | Phase 5 | **Deferred.** Bastion Basic has no file transfer |
 
 ## Deviations from the original plan
@@ -68,11 +68,12 @@ admin access, and the two halves of this lab become one control. It needs Entra 
 unobtainable here.
 
 Phase 8 splits the single Domain Admin account into a tiered model and brings CS01 under LAPS. It
-is **partly built**: the tier OUs, groups and accounts exist, CS01 has been moved out of
-`CN=Computers`, local Administrators membership is set by policy per tier, and the existing
-deny-logon rights have been surveyed. No logon has been denied to anybody yet, so every earlier
-phase still behaves as its own document describes. Remaining steps and the residual risk are in
-[08-tiered-administration.md](docs/08-tiered-administration.md) section 10 and
+is **partly built**. The tier OUs, groups and accounts exist, each tier account has been proven
+against its own machine, local Administrators membership is set by policy per tier, and CS01 is
+under LAPS, which was the last machine holding the shared Terraform password. The deny-logon
+enforcement is not built and no logon has been denied to anybody, so every earlier phase still
+behaves as its own document describes. Remaining steps and the residual risk are in
+[08-tiered-administration.md](docs/08-tiered-administration.md) section 14 and
 [docs/risk-and-limitations.md](docs/risk-and-limitations.md).
 
 ## Operating notes

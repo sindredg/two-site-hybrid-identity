@@ -4,8 +4,9 @@ An Active Directory forest in Azure, synchronised to Microsoft Entra ID, serving
 a second region over VNet peering, with hybrid-joined endpoints managed and hardened through Group
 Policy, Microsoft security baselines and Windows LAPS.
 
-**Phases 0 to 7 are built and verified. Phase 8 is in progress**, the tiered structure
-exists, the enforcement policy is not yet linked. See the
+**Phases 0 to 7 are built and verified. Phase 8 is in progress.** The tiered structure exists and
+CS01 is now under LAPS, so no machine still holds the shared build password. The deny-logon
+enforcement is not yet linked. See the
 [phase documentation](docs/), [decisions](docs/decisions.md),
 [risk register](docs/risk-and-limitations.md) and
 [troubleshooting log](docs/troubleshooting/README.md).
@@ -171,12 +172,14 @@ and CL02 storing its in Entra ID. Retrieving CL01's password as a Domain Admin r
 does not confer decryption.
 
 **Tiered administration (Phase 8), in progress.** Tier 0/1/2 OUs, groups and admin accounts exist
-outside sync scope, and CS01 has been moved out of `CN=Computers`, the container that no GPO can
-target, which is what blocked LAPS on it in Phase 7. The enforcement half is not built: no logon has
-been denied to anybody, and `labadmin` is still the working Domain Admin. The Azure control plane
-also remains an unreduced path to Tier 0, since `run-command` executes as SYSTEM without a logon.
-Residual risk is in [risk-and-limitations.md](docs/risk-and-limitations.md); remaining steps are in
-[08-tiered-administration.md](docs/08-tiered-administration.md) section 10.
+outside sync scope, and each tier account has been proven against its own machine. CS01 has been
+moved out of `CN=Computers`, the container that no GPO can target, and brought under Windows LAPS.
+That was the last machine holding the shared Terraform password, so the credential in state no
+longer opens anything. The enforcement half is not built: no logon has been denied to anybody, and
+`labadmin` is still the working Domain Admin. The Azure control plane also remains an unreduced
+path to Tier 0, since `run-command` executes as SYSTEM without a logon. Residual risk is in
+[risk-and-limitations.md](docs/risk-and-limitations.md); remaining steps are in
+[08-tiered-administration.md](docs/08-tiered-administration.md) section 14.
 
 ---
 

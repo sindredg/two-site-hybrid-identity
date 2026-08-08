@@ -7,7 +7,7 @@ workstation against the Azure control plane.
 See [Phase 8](../docs/08-tiered-administration.md).
 
 > **Sections marked *pending* have not been run yet.** They are the planned commands,
-> not captured output. Phase 8 stops after the deny-rights survey.
+> not captured output. Phase 8 stops after CS01 is brought under LAPS.
 
 ## Recovery, before anything else
 

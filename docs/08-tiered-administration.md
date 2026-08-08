@@ -1,8 +1,8 @@
 # Phase 8. Tiered administration
 
-> **Status: in progress.** Steps 0 to 8 are built and verified below. The enforcement
+> **Status: in progress.** Steps 0 to 12 are built and verified below. The enforcement
 > half is not yet implemented: deny-logon policy, the cross-tier test matrix, and
-> retiring `labadmin`. Section 10 records where the walkthrough stopped. Nothing here
+> retiring `labadmin`. Section 14 records where the walkthrough stopped. Nothing here
 > describes a control that has not been run.
 
 **Being built:** an end to the single Domain Admin account used for everything. Phase 7
@@ -46,6 +46,9 @@ true.
 | 5. CS01 relocation | CS01 |
 | 6. Deny-rights survey | CS01 |
 | 8. Local Administrators | CS01, then each target machine |
+| 9. Positive path | Each target machine, as its own tier account |
+| 10, 11. LAPS permissions and policy | CS01 as a Domain Admin |
+| 12. LAPS result | CS01, elevated, then as `t1-admin` |
 
 **Nothing runs on DC01 in the completed sections.** Administering the directory from a
 member server with RSAT is the practice this phase exists to enforce, and every
@@ -463,7 +466,209 @@ holds local administrator on CS01 until then.
 
 ---
 
-## 9. Exit criteria
+## 9. The positive path, before anything is denied
+
+Each tier account has to be proven against its own machine first. A refusal in section
+16 only means something if the same account is known to have worked before the deny
+rules existed.
+
+![All three accounts enabled and usable](images/phase8/tier-accounts-ready.png)
+
+Four Bastion sessions, one per account:
+
+| Account | Target | Admitted by |
+|---|---|---|
+| `t0-admin` | DC01 | `Domain Admins`, which Windows places in local Administrators on every DC |
+| `t1-admin` | CS01 | `sg-it-admins`, placed by `Tier1-Local-Admins` |
+| `t2-admin` | CL01 | `sg-helpdesk`, placed by `Tier2-Local-Admins` |
+| `t2-admin` | CL02 | same |
+
+```powershell
+hostname; whoami
+```
+
+```powershell
+whoami /groups | Select-String "sg-|Domain Admins|Administrators"
+```
+
+![t0-admin on DC01](images/phase8/dc01-t0-admin-token.png)
+
+![t1-admin on CS01](images/phase8/cs01-t1-admin-token.png)
+
+![t2-admin on CL01](images/phase8/cl01-t2-admin-token.png)
+
+**`whoami /groups` reads the access token, not the machine.** `Get-LocalGroupMember`
+shows what a machine believes about its own groups. The token is built once, at logon,
+from the account's memberships at that moment, and never updated. Deny-logon rights are
+evaluated against the SIDs in that token, so this is the input section 14's rules will
+act on. An account that signed in before a membership existed keeps the old token until
+it signs out.
+
+**`BUILTIN\Administrators ... Group used for deny only` is not a fault.** UAC issues
+administrators a filtered token in which that SID is present but disabled, and it reads
+`Enabled group` only in an elevated process. It is the same mechanism behind the two
+`Invoke-LapsPolicyProcessing` refusals in the Phase 7 troubleshooting log. On DC01 the
+same line reads `Enabled group, Group owner`, because that session was elevated.
+
+The CS01 capture also shows a local group named `Administrators (built-in)` with a
+machine-local SID, which should not exist. It is
+[troubleshooting entry 2](troubleshooting/08-tiered-administration.md), along with the
+lockout that preceded these four sessions.
+
+---
+
+## 10. LAPS permissions on the new OU
+
+The schema was extended once in Phase 7 and is forest-wide, so none of that repeats.
+This is only the ACL on `OU=Servers`, and it needs Domain Admin, so it is Tier 0 work
+that `t1-admin` cannot do.
+
+```powershell
+Set-LapsADComputerSelfPermission -Identity "OU=Servers,$domainDN"
+```
+
+![Self-permission on OU=Servers](images/phase8/laps-self-permission-servers.png)
+
+**`SELF` is the computer account.** CS01 authenticates as `SINDREDG\CS01$` and writes
+the LAPS attributes on its own object and nothing else. No service account and no agent
+holds standing privilege over anyone's password. That is what allows a domain controller
+to store a secret it has no way to produce.
+
+```powershell
+Set-LapsADReadPasswordPermission -Identity "OU=Servers,$domainDN" -AllowedPrincipals "SINDREDG\sg-it-admins"
+```
+
+```powershell
+Set-LapsADResetPasswordPermission -Identity "OU=Servers,$domainDN" -AllowedPrincipals "SINDREDG\sg-it-admins"
+```
+
+Read and reset are separate rights on purpose. Reset lets a tier invalidate a password
+without ever seeing one.
+
+The principal must be fully qualified. A bare `sg-it-admins` is rejected as an isolated
+name, because it could resolve against the local SAM, the domain, or a trusted domain.
+That refusal is in the Phase 7 troubleshooting log.
+
+```powershell
+Find-LapsADExtendedRights -Identity "OU=Servers,$domainDN"
+```
+
+![Extended right holders on OU=Servers](images/phase8/laps-extended-rights-servers.png)
+
+`sg-it-admins` holds it rather than `sg-tier0-admins` because CS01 is a Tier 1 machine
+and Tier 1 owns it. A tier may reach downward, so a second Tier 0 path to a secret that
+already has an owner adds exposure without adding capability.
+
+`Domain Admins` appears without having been granted anything, because it holds *All
+Extended Rights* implicitly. Section 12 shows that this does not let it decrypt.
+
+---
+
+## 11. The policy
+
+```powershell
+New-GPO -Name "Server-LAPS-AD" -Comment "Phase 8. LAPS backup to Active Directory for Tier 1 servers. Decryptor sg-it-admins."
+```
+
+```powershell
+New-GPLink -Name "Server-LAPS-AD" -Target "OU=Servers,$domainDN" -LinkEnabled Yes
+```
+
+![A created and linked GPO contains nothing](images/phase8/server-laps-gpo-empty.png)
+
+`ComputerVersion: AD Version: 0` immediately after creation. `New-GPO` and `New-GPLink`
+create and link. Neither authors a setting, and a linked empty GPO does nothing.
+
+Settings are entered in GPMC under **Computer Configuration, Policies, Administrative
+Templates, System, LAPS**. That node exists because Phase 5 copied `LAPS.admx` into the
+Central Store, two phases before anything needed it.
+
+![The LAPS node with four settings configured](images/phase8/laps-settings-gpmc.png)
+
+| Setting | Value |
+|---|---|
+| Configure password backup directory | Enabled, `Active Directory` |
+| Enable password encryption | Enabled |
+| Configure authorized password decryptors | `SINDREDG\sg-it-admins` |
+| Password Settings | Complexity 4, length 20, age 30 days |
+| Name of administrator account to manage | Not Configured |
+
+**`Configure password backup directory` is a dropdown, not a switch, and it defaults to
+`Disabled`.** Enabling the policy and clicking OK leaves the feature off while the
+dialog and the GPO report both read `Enabled`. That is what happened here and it is
+[troubleshooting entry 3](troubleshooting/08-tiered-administration.md).
+
+The decryptor value is typed by hand and worth checking character by character. A
+leading hyphen on this exact setting cost Phase 7 a debugging session, because
+`-SINDREDG\sg-it-admins` cannot be resolved to a SID and LAPS then refuses to encrypt.
+
+Leaving the account name unset means LAPS manages the built-in administrator by RID
+rather than by name.
+
+---
+
+## 12. CS01 under LAPS
+
+```powershell
+gpupdate /force
+```
+
+```powershell
+Invoke-LapsPolicyProcessing
+```
+
+**That order is required.** `Invoke-LapsPolicyProcessing` re-reads the policy the machine
+already holds and does not fetch Group Policy.
+
+| Event | Meaning |
+|---|---|
+| 10054 | Processing in response to a Group Policy change notification |
+| 10055 | Using DC01 |
+| 10015 | Password needs updating, five reasons at once. Normal on a first run |
+| 10018 | Wrote the new password to Active Directory |
+| 10020 | Set it on the local account, `labadmin`, **RID 0x1F4** |
+| 10004 | Succeeded |
+
+`0x1F4` is 500. LAPS manages the built-in administrator by RID, and Azure renamed RID
+500 to `labadmin` at provisioning rather than creating a second account. Phase 7
+established that on CL01 with `Get-LocalUser`. Here the event states it directly.
+
+### The encryption boundary, again
+
+As `labadmin`, a Domain Admin:
+
+![Unauthorized for a Domain Admin](images/phase8/cs01-decryption-unauthorized.png)
+
+The attribute is readable. `Account` and `Password` are empty and `DecryptionStatus`
+reads `Unauthorized`. Forest administration does not include reading this.
+
+As `t1-admin`, a member of `sg-it-admins`:
+
+![Success for the encryption principal](images/phase8/cs01-decryption-authorized.png)
+
+Same command, same object, opposite result, and the difference is not privilege. This
+is the Phase 7 demonstration repeated on a Tier 1 machine with a Tier 1 account.
+
+### What this closes
+
+| Machine | Local administrator |
+|---|---|
+| CL01 | LAPS, encrypted to `sg-it-admins`, stored in Active Directory |
+| CL02 | LAPS, stored in Entra ID |
+| CS01 | LAPS, encrypted to `sg-it-admins`, stored in Active Directory |
+| DC01 | No local accounts. Promotion migrates them into the directory |
+
+CS01 was the last machine holding the shared Terraform password, and Phase 7 had to
+leave it because `CN=Computers` cannot be a Group Policy target.
+
+**The password in `terraform.tfstate` no longer opens any machine in the lab.** Only the
+domain `labadmin` account still uses it, and section 17 retires that. Risk 3 is closed
+for local credentials and open for the domain one. Risk 2 drops from a live credential
+to a stale string, and would become live again after a `terraform destroy` and rebuild.
+
+---
+
+## 13. Exit criteria
 
 | Criterion | Evidence | Status |
 |---|---|---|
@@ -476,7 +681,11 @@ holds local administrator on CS01 until then.
 | CS01 relocated to a linkable OU | `CN=CS01,OU=Servers,DC=sindredg,DC=local` | Done |
 | Existing deny rights surveyed before authoring | One GPO, two rights, both recorded | Done |
 | Local Administrators membership controlled by policy | `sg-it-admins` on CS01, `sg-helpdesk` on both clients | Done |
-| CS01 local administrator under LAPS | | Pending |
+| CS01 relocated, LAPS permissions granted on `OU=Servers` | `Find-LapsADExtendedRights` lists `sg-it-admins` | Done |
+| Each tier account reaches its own machine | Token on all four targets carries the tier group | Done |
+| CS01 local administrator under LAPS | `Get-LapsADPassword -Identity CS01` returns an encrypted object | Done |
+| Encryption boundary holds on CS01 | `Unauthorized` as `labadmin`, `Success` as `t1-admin` | Done |
+| Shared Terraform password removed from every machine | CL01, CL02 and CS01 all LAPS-managed | Done |
 | Deny-logon rights applied by GPO per tier | | Pending |
 | Cross-tier logon attempted and refused | | Pending |
 | Denial captured in the event log | | Pending |
@@ -485,21 +694,23 @@ holds local administrator on CS01 until then.
 
 ---
 
-## 10. Walkthrough status
+## 14. Walkthrough status
 
-**Stopped after section 8.** Everything above has been run and its output captured.
+**Stopped after section 12.** Everything above has been run and its output captured.
 Nothing has been denied to anybody yet, and no deny policy is linked. The environment is
-in a safe intermediate state: the tier accounts can reach their own machines, `labadmin`
+in a safe intermediate state: every tier account reaches its own machine, `labadmin`
 still works everywhere, and every previous phase behaves as its own document describes.
+
+Two failures along the way are in
+[troubleshooting/08-tiered-administration.md](troubleshooting/08-tiered-administration.md),
+both in Group Policy authoring rather than in the tier model: a preference that locked
+every domain account out of CS01, and a dropdown that left LAPS switched off while the
+policy reported as configured.
 
 Remaining work, in dependency order:
 
 | # | Step | Why it is next |
 |---|---|---|
-| 9 | Positive-path verification for all three accounts | A denial only means something once the allowed path is known to work |
-| 10 | LAPS permissions on `OU=Servers` | Reuses the Phase 7 pattern against the new OU |
-| 11 | `Server-LAPS-AD` GPO, linked to `OU=Servers` | The permissions do nothing until a policy tells CS01 to generate a password |
-| 12 | Apply and verify CS01's password in AD | Closes the CS01 half of risk 3 |
 | 13 | Author the three deny GPOs, unlinked | Must carry the baseline members from section 6 |
 | 14 | Group Policy Modeling, then link one tier at a time, Tier 2 first | Lowest blast radius first; Tier 0 last, with the rollback command ready |
 | 15 | Test matrix: six accounts against four machines, three logon paths | The phase is only proven by what it refuses |
