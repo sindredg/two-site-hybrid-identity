@@ -4,7 +4,7 @@ An Active Directory forest in Azure, synchronised to Microsoft Entra ID, serving
 a second region over VNet peering, with hybrid-joined endpoints managed and hardened through Group
 Policy, Microsoft security baselines and Windows LAPS.
 
-**Phases 0 to 7 are built and verified. Phase 8 is in progress** — the tiered structure
+**Phases 0 to 7 are built and verified. Phase 8 is in progress**, the tiered structure
 exists, the enforcement policy is not yet linked. See the
 [phase documentation](docs/), [decisions](docs/decisions.md),
 [risk register](docs/risk-and-limitations.md) and
@@ -14,9 +14,9 @@ The Azure footprint is Terraform, the directory is idempotent PowerShell, and th
 configuration is Group Policy built from cmdlets wherever one exists. The only hand-clicked parts
 are the tooling Microsoft ships as a wizard, and the parts of Group Policy that have no cmdlet.
 
-> **Everything here runs on Entra ID Free.** Connect Sync, hybrid Entra join and Windows LAPS are
-> all free. The lab stops before Conditional Access (P1) and PIM (P2), which are unobtainable for
-> this tenant. See [decisions.md](docs/decisions.md).
+> **Entra ID licence in this project is "Free-tier".** Connect Sync, hybrid Entra join, and Windows LAPS are all included. 
+> For further Entra ID hardening see previous project; [Access Control and Identity Governance](https://github.com/sindredg/Access-Control-and-Identity-Governance) which covers CA, PIM, access reviews, etc in Entra.
+>[decisions.md](docs/decisions.md).
 
 ---
 
