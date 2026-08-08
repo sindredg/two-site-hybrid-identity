@@ -349,13 +349,13 @@ the LAPS policy for that OU is not yet applied, so the row above still stands.
 ### Captured in Phase 8
 
 Two verifications were missing when this phase closed. Both needed an account inside
-`sg-it-admins`, and Phase 8 retires that membership from `cdubois` — so they were run
+`sg-it-admins`, and Phase 8 retires that membership from `cdubois`, so they were run
 immediately before the change that would have made them impossible. Evidence is in
 [08-tiered-administration.md](08-tiered-administration.md) section 3.
 
 **The positive half of the permission test.** The refusal above is the negative half.
-Retrieving the same password as `cdubois` — a member of `sg-it-admins`, not a Domain
-Admin, and not even elevated — returns `DecryptionStatus: Success`. One succeeds and one
+Retrieving the same password as `cdubois`, a member of `sg-it-admins` who is not a
+Domain Admin and not even elevated, returns `DecryptionStatus: Success`. One succeeds and one
 does not, neither explained by how much authority the caller holds, which is what
 demonstrates the boundary end to end.
 
@@ -387,7 +387,7 @@ not a one-shot.
 
 [Phase 8](08-tiered-administration.md) continues from here: it splits the single Domain
 Admin account into a tiered model and addresses CS01's unmanaged local administrator.
-It is **partly built** — the tier structure exists and CS01 has been relocated, but no
+It is **partly built**: the tier structure exists and CS01 has been relocated, but no
 logon has been denied and CS01's password is still the shared Terraform one. Until that
 work is finished those controls remain explicit residual risk rather than a completed
 claim, and everything in this document holds exactly as written.

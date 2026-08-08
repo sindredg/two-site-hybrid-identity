@@ -171,12 +171,12 @@ and CL02 storing its in Entra ID. Retrieving CL01's password as a Domain Admin r
 does not confer decryption.
 
 **Tiered administration (Phase 8), in progress.** Tier 0/1/2 OUs, groups and admin accounts exist
-outside sync scope, and CS01 has been moved out of `CN=Computers` — the container that no GPO can
+outside sync scope, and CS01 has been moved out of `CN=Computers`, the container that no GPO can
 target, which is what blocked LAPS on it in Phase 7. The enforcement half is not built: no logon has
 been denied to anybody, and `labadmin` is still the working Domain Admin. The Azure control plane
 also remains an unreduced path to Tier 0, since `run-command` executes as SYSTEM without a logon.
 Residual risk is in [risk-and-limitations.md](docs/risk-and-limitations.md); remaining steps are in
-[08-tiered-administration.md](docs/08-tiered-administration.md) section 9.
+[08-tiered-administration.md](docs/08-tiered-administration.md) section 10.
 
 ---
 

@@ -1,6 +1,6 @@
 # Tiered administration
 
-Structure and surveys run on CS01 with RSAT. Deny-logon policy is authored in GPMC —
+Structure and surveys run on CS01 with RSAT. Deny-logon policy is authored in GPMC.
 User Rights Assignment is not registry-backed and has no cmdlet. Recovery runs from the
 workstation against the Azure control plane.
 
@@ -39,7 +39,7 @@ az vm run-command invoke -g rg-hybridid-swedencentral -n DC01 --command-id RunPo
 az vm run-command invoke -g rg-hybridid-swedencentral -n DC01 --command-id RunPowerShellScript --scripts "Import-Module GroupPolicy; Set-GPLink -Name 'Tier0-Logon-Restrictions' -Target 'OU=Domain Controllers,DC=sindredg,DC=local' -LinkEnabled No; gpupdate /force"
 ```
 
-**`gpupdate /force` is not optional.** Unlinking undoes nothing by itself — the deny
+**`gpupdate /force` is not optional.** Unlinking undoes nothing by itself. The deny
 rights are already in the local security database and stay there until a policy refresh
 removes them.
 
@@ -143,11 +143,11 @@ secedit /export /cfg C:\Windows\Temp\rights.inf /areas USER_RIGHTS
 Select-String -Path C:\Windows\Temp\rights.inf -Pattern 'SeDeny'
 ```
 
-## Authoring the deny GPOs — pending
+## Authoring the deny GPOs, pending
 
 GPMC: **Computer Configuration, Policies, Windows Settings, Security Settings, Local
-Policies, User Rights Assignment.** No cmdlet exists — the setting is not registry-backed,
-so `PolicyFileEditor` cannot reach it either.
+Policies, User Rights Assignment.** No cmdlet exists. The setting is not
+registry-backed, so `PolicyFileEditor` cannot reach it either.
 
 ```powershell
 New-GPO -Name "Tier0-Logon-Restrictions" -Comment "Phase 8. Denies Tier 1 and Tier 2 accounts interactive and RDP logon to domain controllers."
@@ -162,7 +162,7 @@ New-GPLink -Name "Tier2-Logon-Restrictions" -Target "OU=Workstations,OU=Sync,$do
 `-Order 1` is highest precedence at that OU. It must outrank the baseline for the rights
 they share.
 
-## Local Administrators by policy — pending
+## Local Administrators by policy
 
 GPMC: **Computer Configuration, Preferences, Control Panel Settings, Local Users and
 Groups, New, Local Group.**
@@ -176,7 +176,7 @@ Groups, New, Local Group.**
 | Delete all member groups | **unticked** |
 
 **Use `Administrators (built-in)`,** which resolves by well-known SID and survives a
-renamed group. **Leave both delete boxes unticked** — they make the policy authoritative
+renamed group. **Leave both delete boxes unticked.** They make the policy authoritative
 and strip everything else, including `Domain Admins`.
 
 **Preferences, not Restricted Groups.** Restricted Groups' *Members of this group* list
@@ -186,7 +186,16 @@ and strip everything else, including `Domain Admins`.
 Get-LocalGroupMember -Group Administrators
 ```
 
-## Verification — pending
+**Preferences do not revert.** Removing a member from the item stops it being added
+again. It does not remove it from a machine that already has it. Name the other tier's
+group with the `Remove from this group` action so membership is stated rather than
+accumulated, and clean up anything already applied by hand:
+
+```powershell
+Remove-LocalGroupMember -Group Administrators -Member 'SINDREDG\sg-it-admins'
+```
+
+## Verification, pending
 
 ```powershell
 Get-WinEvent -FilterHashtable @{LogName='Security'; Id=4625} -MaxEvents 5 | Format-List TimeCreated, Message

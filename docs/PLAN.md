@@ -57,7 +57,7 @@ filtered and unlinked.
 
 **Two Phase 7 verifications were captured late,** in Phase 8 rather than Phase 7: a successful
 decryption as `sg-it-admins`, and a rotation. Both needed an account inside `sg-it-admins`, and
-Phase 8 removes that membership from `cdubois` — so the evidence was banked immediately before the
+Phase 8 removes that membership from `cdubois`, so the evidence was banked immediately before the
 change that would have made it impossible. See
 [08-tiered-administration.md](docs/08-tiered-administration.md) section 3.
 
@@ -69,10 +69,10 @@ unobtainable here.
 
 Phase 8 splits the single Domain Admin account into a tiered model and brings CS01 under LAPS. It
 is **partly built**: the tier OUs, groups and accounts exist, CS01 has been moved out of
-`CN=Computers`, and the existing deny-logon rights have been surveyed. No logon has been denied to
-anybody yet and no policy authored in that phase is linked, so every earlier phase still behaves as
-its own document describes. Remaining steps and the residual risk are in
-[08-tiered-administration.md](docs/08-tiered-administration.md) section 9 and
+`CN=Computers`, local Administrators membership is set by policy per tier, and the existing
+deny-logon rights have been surveyed. No logon has been denied to anybody yet, so every earlier
+phase still behaves as its own document describes. Remaining steps and the residual risk are in
+[08-tiered-administration.md](docs/08-tiered-administration.md) section 10 and
 [docs/risk-and-limitations.md](docs/risk-and-limitations.md).
 
 ## Operating notes
