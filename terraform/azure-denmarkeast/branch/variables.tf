@@ -8,29 +8,10 @@ variable "subscription_id" {
   }
 }
 
-# The branch region exists to work around the Sweden Central vCPU quota, which is
-# capped at 4 on a free trial and fully consumed by DC01 and CS01.
-#
-# Picking a region took three attempts, so check all three of these before
-# changing it. Each one failed at a different and later stage than the last.
-#
-# 1. Quota, two counters and both must have room. Raising only the regional one
-#    still leaves the family counter blocking:
-#      az vm list-usage --location <region> -o table
-#
-# 2. The size, which a free trial restricts per region on top of the core cap.
-#    Standard_B2ls_v2 is offered in only three regions on this subscription:
-#    swedencentral (full), polandcentral and denmarkeast. Germany West Central
-#    returned 354 SKUs and not one usable 2 vCPU x64 with 4 GB:
-#      az vm list-skus -l <region> --resource-type virtualMachines --size Standard_B2ls -o table
-#
-# 3. Auto-shutdown, which is a Microsoft.DevTestLab resource on a separate and
-#    much shorter region list. See enable_auto_shutdown below.
-#
-# Denmark East also failed twice on azurerm_virtual_network with "Root object was
-# present, but now absent" - the create succeeded and the read-back returned
-# nothing. It settled on a later apply. Treat a repeat of that as the region
-# being eventually consistent rather than as a config fault.
+# Separate region because the Sweden Central trial vCPU quota is fully used by
+# DC01 and CS01. Changing it needs three checks, each of which failed a different
+# candidate: regional and family vCPU quota, per-region size availability, and
+# Microsoft.DevTestLab coverage for auto-shutdown. See docs/decisions.md.
 variable "location" {
   description = "Azure region for the branch site. Must differ from the HQ region and must have spare vCPU quota."
   type        = string
@@ -95,12 +76,7 @@ variable "client_size" {
   default     = "Standard_B2ls_v2"
 }
 
-# The whole client roster, typed rather than buried in a locals block, so adding
-# a third machine is a tfvars entry rather than a code change.
-#
-# host_index feeds cidrhost against subnet_prefix, which means the addresses
-# follow the subnet if it ever moves. Keep the map keys stable: they are the VM
-# names, the Windows computer names and the AD computer objects, and renaming a
+# Map keys are the VM, Windows computer and AD computer object names. Renaming a
 # key replaces the machine rather than renaming it.
 variable "clients" {
   description = "Endpoints to build in the branch site. Key is the VM name; host_index is the host number within subnet_prefix (0-3 are reserved by Azure)."
@@ -110,9 +86,8 @@ variable "clients" {
   }))
 
   default = {
-    # Phase 5 hardens CL01 against a security baseline and leaves CL02 as a
-    # control, so Policy Analyzer has something to compare. Phase 6 then points
-    # each at a different LAPS backend: CL01 to AD, CL02 to Entra ID.
+    # CL01 is hardened against a baseline, CL02 is the control. CL01 uses AD
+    # LAPS, CL02 uses Entra LAPS.
     CL01 = { host_index = 4 }
     CL02 = { host_index = 5 }
   }
@@ -134,29 +109,18 @@ variable "enable_client" {
   default     = true
 }
 
-# Set from the first apply, unlike the HQ root where this was added only after
-# DC01 was promoted. DC01 already exists and answers across the peering, so there
-# is no window in which these clients need Azure-provided DNS.
+# DC01 already answers across the peering, so these clients never need
+# Azure-provided DNS.
 variable "dns_servers" {
   description = "VNet DNS servers. DC01 in the HQ VNet, reached over the peering. Without this the clients cannot resolve the domain and will not join."
   type        = list(string)
   default     = ["10.10.1.4"]
 }
 
-# Off in this region, and not by choice. Auto-shutdown is a Microsoft.DevTestLab
-# resource, and that provider is published to a fixed region list that Denmark
-# East and Poland Central are both absent from. The VM deploys fine and then the
-# schedule fails with LocationNotAvailableForResourceType.
-#
-# Check before turning it on in a new region:
-#
-#   az provider show -n Microsoft.DevTestLab --query "resourceTypes[?resourceType=='schedules'].locations" -o json
-#
-# With this false, nothing stops these machines running. Deallocate them by hand
-# when you finish a session - stopping from inside Windows still bills, only a
-# deallocate does not:
-#
-#   az vm deallocate --ids $(az vm list -g rg-branch-office --query "[].id" -o tsv)
+# Off because Microsoft.DevTestLab does not publish schedules in Denmark East.
+# The VM deploys and the schedule then fails with
+# LocationNotAvailableForResourceType. Nothing stops these machines, so
+# deallocate them by hand after a session.
 variable "enable_auto_shutdown" {
   description = "Create daily auto-shutdown schedules. Requires a region where Microsoft.DevTestLab publishes the schedules resource type."
   type        = bool

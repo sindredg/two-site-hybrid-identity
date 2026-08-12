@@ -1,20 +1,10 @@
 locals {
-  # One entry per VM. Everything below is driven off this map, so adding another
-  # box is a single block rather than five more resources.
+  # Static addresses are required, not stylistic. Terraform builds NICs in
+  # parallel and Azure hands out the lowest free address, so a dynamic NIC can
+  # claim 10.10.1.4 before DC01 asks for it and fail the apply.
   #
-  # This root holds the HQ site only: the domain controller and the connect
-  # server. The clients live in terraform/branch, peered to this VNet.
-  #
-  # Every VM gets a static private_ip on purpose. Azure assigns dynamic
-  # addresses starting at the lowest free one, which is 10.10.1.4 - the same
-  # address DC01 needs. Terraform builds the NICs in parallel, so a dynamic NIC
-  # can win the race and claim .4 before DC01 asks for it, failing the apply
-  # with PrivateIPAddressIsAllocated. Give any VM you add here its own address.
-  # Sizes are all Standard_B2ls_v2. Sweden Central offers no v1 B-series at all
-  # (B1ms and B2s return SkuNotAvailable there) and no 1-vCPU size in any
-  # burstable family, so 2 vCPU / 4 GB is the practical floor. Never use the
-  # B2pls_v2 / B2ps_v2 / B2pts_v2 variants here - the p means Arm64, and the
-  # Windows x64 images below will not boot on them.
+  # Never use the B2pls_v2 / B2ps_v2 / B2pts_v2 sizes. The p is Arm64 and the
+  # Windows x64 images will not boot.
   vms = {
     DC01 = {
       size       = "Standard_B2ls_v2"        # 2 vCPU, 4 GB
@@ -23,14 +13,8 @@ locals {
       create     = true
     }
 
-    # CS01, Connect Server. Runs Entra Connect Sync and the management tooling
-    # alongside it: GPMC, RSAT, Security Compliance Toolkit. Managing the
-    # directory from a member server rather than from the domain controller is
-    # the habit worth building.
-    #
-    # Briefly renamed MGMT01 while Entra was out of scope, then reverted. The map
-    # key is the VM name, so a rename replaces the VM, its NIC, its disk and its
-    # shutdown schedule - not worth it for a name that is accurate again.
+    # Map keys are the VM, Windows computer and AD computer object names.
+    # Renaming a key replaces the machine rather than renaming it.
     CS01 = {
       size       = "Standard_B2ls_v2"   # 2 vCPU, 4 GB
       image_sku  = "2022-datacenter-g2" # Desktop Experience, Gen2
@@ -38,20 +22,15 @@ locals {
       create     = true
     }
 
-    # CL01 and CL02 used to sit here on .6 and .7. They now live in
-    # terraform/branch, in a second region and a second resource group, because
-    # Sweden Central had no vCPU quota left for them and a free trial cannot ask
-    # for more. See docs/decisions.md.
+    # CL01 and CL02 live in terraform/branch. Sweden Central had no vCPU quota
+    # left for them. See docs/decisions.md.
   }
 
   active_vms = { for name, cfg in local.vms : name => cfg if cfg.create }
 }
 
-# No public IPs. Access is via Azure Bastion (see network.tf), so nothing in this
-# lab is reachable from the internet. The VMs keep outbound internet through the
-# subnet's default outbound access, which is what Windows Update and the Security
-# Compliance Toolkit download need - verified with:
-#   az network vnet subnet show ... --query defaultOutboundAccess   (-> true)
+# No public IPs. Access is via Bastion. Outbound internet comes from the subnet's
+# default outbound access, which Windows Update needs.
 
 resource "azurerm_network_interface" "vm" {
   for_each = local.active_vms
@@ -97,8 +76,8 @@ resource "azurerm_windows_virtual_machine" "vm" {
   }
 
   lifecycle {
-    # "latest" resolves to a new build whenever Microsoft publishes one.
-    # Without this, a later plan wants to destroy and rebuild working VMs.
+    # "latest" resolves to a new build over time. Without this, a later plan
+    # wants to rebuild working VMs.
     ignore_changes = [source_image_reference[0].version]
   }
 }
