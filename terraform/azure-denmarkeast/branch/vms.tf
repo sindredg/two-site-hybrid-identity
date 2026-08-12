@@ -1,13 +1,11 @@
 locals {
-  # enable_client is the cost gate. An empty map builds no VMs while leaving the
-  # network and the peering in place, so turning the clients back on does not
-  # churn the address space.
+  # The cost gate. An empty map builds no VMs while leaving the network and
+  # peering in place.
   active_clients = var.enable_client ? var.clients : {}
 }
 
-# No public IPs. Access is via the Bastion host in the HQ resource group, across
-# the peering. Outbound internet comes from the subnet's default outbound access,
-# which is what Windows Update and the hybrid join need.
+# No public IPs. Access is via the HQ Bastion host over the peering. Outbound
+# internet comes from the subnet default outbound access.
 module "client" {
   source   = "../../modules/windows-vm"
   for_each = local.active_clients
@@ -29,10 +27,9 @@ module "client" {
 
   tags = var.tags
 
-  # An ordering dependency with no data flowing through it, which is the one case
-  # that justifies depends_on. Without the peering these machines boot pointing at
-  # a DNS server they cannot reach, and the symptom arrives much later as a domain
-  # join failure rather than as a network fault.
+  # Ordering only, no data flowing, which is what justifies depends_on. Without
+  # the peering these machines boot pointing at unreachable DNS and the symptom
+  # arrives later as a domain join failure.
   depends_on = [
     azurerm_virtual_network_peering.branch_to_hq,
     azurerm_virtual_network_peering.hq_to_branch,
