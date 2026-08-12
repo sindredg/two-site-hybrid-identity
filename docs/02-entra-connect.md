@@ -270,6 +270,12 @@ at all, which is what proves the OU filtering did real work.
 
 ## 8. Exit criteria
 
+![ADSync running at 2.6.84.0, and Get-ADUser unavailable on CS01](images/phase2/install-state-check.png)
+
+The same capture shows `Get-ADUser` returning `CommandNotFoundException`. Installing
+Connect Sync does not bring the Active Directory PowerShell module with it. That
+arrives with RSAT, which CS01 gained later.
+
 | Criterion | Status |
 |---|---|
 | Connect Sync installed on CS01, 2.5.79.0 or higher | Done, 2.6.84.0 |
