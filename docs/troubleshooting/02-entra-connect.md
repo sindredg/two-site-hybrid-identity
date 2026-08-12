@@ -2,8 +2,8 @@
 
 Walkthrough: [02-entra-connect.md](../02-entra-connect.md).
 
-A Windows Server default that blames the wrong layer, a refusal that was correct,
-and one thing still unexplained.
+A Windows Server default that blames the wrong layer, a message that names the
+wrong fault, a refusal that was correct, and one thing still unexplained.
 
 ---
 
@@ -56,7 +56,36 @@ the Group Policy Client hang, where the message named `gpsvc` and the cause was
 
 ---
 
-## 2. Connect Sync refuses a Domain Admin as the connector account
+## 2. The forest dialog reports a credential format problem as a wrong password
+
+Connecting the on-premises forest failed on the **Connect your directories** step,
+using credentials that worked elsewhere.
+
+![Forest credentials rejected](../images/phase2/forest-credential-rejected.png)
+
+```
+The user name or password is incorrect. Using credentials with a fully qualified
+domain may help to resolve this issue.
+```
+
+**Cause.** The account was entered as `DOMAIN\user`. The wizard authenticates the
+forest account against the forest it is being pointed at and wants the fully
+qualified form, either `user@sindredg.local` or `sindredg.local\user`. The first
+sentence of the message describes the wrong thing. Only the second sentence names
+the actual fault, and it is phrased as a suggestion.
+
+**Resolution applied.** Re-entered the same account in UPN form. The dialog accepted
+it, and the next failure was the connector-account refusal in entry 3, which is a
+different problem entirely.
+
+**Lesson.** A wrong-password message is not evidence of a wrong password. This is the
+second tool in the lab to reject `DOMAIN\user` and report it as a credential error,
+the other being Azure Bastion in [Phase 5](05-group-policy.md). When a credential
+that works elsewhere is refused, suspect the format before suspecting the account.
+
+---
+
+## 3. Connect Sync refuses a Domain Admin as the connector account
 
 Supplying an existing Domain Admin on the AD forest account dialog
 was rejected outright.
@@ -92,7 +121,7 @@ fix.
 
 ---
 
-## 3. UPN suffix shows "Not Added" for a domain that is verified
+## 4. UPN suffix shows "Not Added" for a domain that is verified
 
 **Phase 2. Unresolved.** The Microsoft Entra sign-in configuration page reported
 both UPN suffixes as unmatched.
