@@ -1,4 +1,4 @@
-# Forest to Cloud: Cross-Region Hybrid Identity & Infrastructure
+# AD DS hosted on azure IaaS, Entra synced, Security Baselines, tierd admin access
 
 An Active Directory forest in Azure, synchronised to Microsoft Entra ID, serving a branch office in
 a second region over VNet peering, with hybrid-joined endpoints managed and hardened through Group
