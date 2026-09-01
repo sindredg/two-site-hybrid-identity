@@ -3,7 +3,7 @@
 **Built:** the single Domain Admin account split into three tiers with enforced logon
 boundaries, and CS01 brought under Windows LAPS. Phase 7 removed the shared *local*
 administrator password; this removes the shared *domain* one and covers the machine
-Phase 7 could not reach. Two verifications are not captured and are named in section 18.
+Phase 7 could not reach. Two verifications are not captured and are named in [Exit criteria](#exit-criteria).
 
 > Managed from CS01 using RSAT and GPMC, with the Azure control plane as the recovery
 > path. Commands used in this phase: [tiered-admin.md](../cmd-sheets/tiered-admin.md).
@@ -32,7 +32,7 @@ true.
 
 ---
 
-## 1. Where each command runs
+## Where each command runs
 
 | Section | Run from |
 |---|---|
@@ -54,11 +54,11 @@ true.
 RSAT is the practice this phase exists to enforce, and every interactive logon on a
 domain controller leaves a Tier 0 credential in its memory. The exceptions are sections
 16 and 17, which are Tier 0 work that `t0-admin` can no longer do from CS01 once
-section 14 is complete.
+[Linking, one tier at a time](#linking-one-tier-at-a-time) is complete.
 
 ---
 
-## 2. The recovery path, proven before anything else
+## The recovery path, proven before anything else
 
 Deny-logon rights are the easiest way in Windows to lock every human out of a domain
 controller. Before creating a single object, the escape hatch was tested.
@@ -136,7 +136,7 @@ it would unlink the default policy as well.
 
 ---
 
-## 3. Closing Phase 7's outstanding verifications
+## Closing Phase 7's outstanding verifications
 
 Phase 7 left two checks uncaptured, both needing an account inside `sg-it-admins`. At
 this point that is `cdubois`. Phase 8 removes her admin membership later, because a
@@ -210,7 +210,7 @@ after capture.**
 
 ---
 
-## 4. The tier structure
+## The tier structure
 
 Admin accounts are placed **outside sync scope**. Connect Sync is scoped to `OU=Sync`,
 so everything below lands on-premises only.
@@ -266,11 +266,11 @@ administrator on CL01 and CL02 as well. That is the condition this phase removes
 the state the test matrix in step 15 measures against.
 
 `cdubois` remains in `sg-it-admins` at this point, which is correct: her evidence in
-section 3 depended on it.
+[Closing Phase 7's outstanding verifications](#closing-phase-7s-outstanding-verifications) depended on it.
 
 ---
 
-## 5. CS01 out of the Computers container
+## CS01 out of the Computers container
 
 Phase 7 recorded CS01 as *"Still the shared Terraform password. It sits in
 `CN=Computers`, which no GPO can be linked to."*
@@ -297,7 +297,7 @@ something breaks later, it is clear which one did it.
 
 ---
 
-## 6. What the estate already denies
+## What the estate already denies
 
 User Rights Assignment does **not merge across GPOs**. Two GPOs setting the same right
 do not combine their member lists. The higher-precedence GPO wins outright and the
@@ -348,9 +348,9 @@ by any deny rule targeting a tier group.
 
 ---
 
-## 7. Design decisions taken from the survey
+## Design decisions taken from the survey
 
-Three choices follow from section 6. Each departs from the standard tiering guidance,
+Three choices follow from [What the estate already denies](#what-the-estate-already-denies). Each departs from the standard tiering guidance,
 so the reasoning is recorded next to it.
 
 **Deny network logon is deliberately absent on domain controllers.** A DC is not only a
@@ -382,7 +382,7 @@ it. Both options have a cost and this one was chosen.
 
 ---
 
-## 8. Local Administrators by policy
+## Local Administrators by policy
 
 `t1-admin` and `t2-admin` had no way into their own tier. Signing in over RDP needs
 membership of local Administrators or Remote Desktop Users, and neither account had
@@ -468,7 +468,7 @@ holds local administrator on CS01 until then.
 
 ---
 
-## 9. The positive path, before anything is denied
+## The positive path, before anything is denied
 
 Each tier account has to be proven against its own machine first. A refusal in section
 16 only means something if the same account is known to have worked before the deny
@@ -502,7 +502,7 @@ whoami /groups | Select-String "sg-|Domain Admins|Administrators"
 **`whoami /groups` reads the access token, not the machine.** `Get-LocalGroupMember`
 shows what a machine believes about its own groups. The token is built once, at logon,
 from the account's memberships at that moment, and never updated. Deny-logon rights are
-evaluated against the SIDs in that token, so this is the input section 14's rules will
+evaluated against the SIDs in that token, so this is the input the rules in [Linking, one tier at a time](#linking-one-tier-at-a-time) will
 act on. An account that signed in before a membership existed keeps the old token until
 it signs out.
 
@@ -519,7 +519,7 @@ lockout that preceded these four sessions.
 
 ---
 
-## 10. LAPS permissions on the new OU
+## LAPS permissions on the new OU
 
 The schema was extended once in Phase 7 and is forest-wide, so none of that repeats.
 This is only the ACL on `OU=Servers`, and it needs Domain Admin, so it is Tier 0 work
@@ -562,11 +562,11 @@ and Tier 1 owns it. A tier may reach downward, so a second Tier 0 path to a secr
 already has an owner adds exposure without adding capability.
 
 `Domain Admins` appears without having been granted anything, because it holds *All
-Extended Rights* implicitly. Section 12 shows that this does not let it decrypt.
+Extended Rights* implicitly. [CS01 under LAPS](#cs01-under-laps) shows that this does not let it decrypt.
 
 ---
 
-## 11. The policy
+## The policy
 
 ```powershell
 New-GPO -Name "Server-LAPS-AD" -Comment "Phase 8. LAPS backup to Active Directory for Tier 1 servers. Decryptor sg-it-admins."
@@ -609,7 +609,7 @@ rather than by name.
 
 ---
 
-## 12. CS01 under LAPS
+## CS01 under LAPS
 
 ```powershell
 gpupdate /force
@@ -664,13 +664,13 @@ CS01 was the last machine holding the shared Terraform password, and Phase 7 had
 leave it because `CN=Computers` cannot be a Group Policy target.
 
 **The password in `terraform.tfstate` no longer opens any machine in the lab.** Only the
-domain `labadmin` account still uses it, and section 17 retires that. Risk 3 is closed
+domain `labadmin` account still uses it, and [Retiring `labadmin`](#retiring-labadmin) retires that. Risk 3 is closed
 for local credentials and open for the domain one. Risk 2 drops from a live credential
 to a stale string, and would become live again after a `terraform destroy` and rebuild.
 
 ---
 
-## 13. Authoring the deny GPOs
+## Authoring the deny GPOs
 
 Three GPOs, created unlinked so nothing could apply before it had been checked.
 
@@ -683,7 +683,7 @@ is not registry-backed and `PolicyFileEditor` cannot reach it either.
 
 **Groups, not accounts.** The first pass listed both, `sg-it-admins` and `t1-admin`
 side by side. That is redundant. Deny rights are evaluated against every SID in the
-access token, and group SIDs are in the token, which section 9 shows directly. Naming
+access token, and group SIDs are in the token, which [The positive path, before anything is denied](#the-positive-path-before-anything-is-denied) shows directly. Naming
 the group covers its members, and it means a future account added to the group is
 covered without editing any GPO.
 
@@ -728,7 +728,7 @@ configured and matched nothing.
 
 ---
 
-## 14. Linking, one tier at a time
+## Linking, one tier at a time
 
 Lowest blast radius first. Tier 2 touches only the two clients, which `labadmin` and
 `t2-admin` both still reach.
@@ -751,7 +751,7 @@ Then the check that matters, on CL01:
 
 `SeDenyNetworkLogonRight` and `SeDenyRemoteInteractiveLogonRight` both carry
 `S-1-5-113`, `S-1-5-114` and the two tier groups. **The Phase 6 result survived the
-precedence change**, which is the thing the section 6 survey existed to protect.
+precedence change**, which is the thing the survey in [What the estate already denies](#what-the-estate-already-denies) existed to protect.
 
 `secedit /export` reads the machine's effective local policy after every GPO has applied
 and precedence has resolved. `Get-GPOReport` only shows what one GPO asked for. This
@@ -780,7 +780,7 @@ deny landed, and it did not catch Tier 0.
 
 ---
 
-## 15. The refusals
+## The refusals
 
 Bastion opens the session in a separate window, so a failed logon there cannot be tied
 to an account in a screenshot. `runas` produces the same refusal in the console, with
@@ -832,7 +832,7 @@ test proves nothing either way** and is recorded so it is not mistaken for evide
 
 ---
 
-## 16. Retiring `labadmin`
+## Retiring `labadmin`
 
 Run on DC01 as `t0-admin`, which is Tier 0 work on a Tier 0 machine. `t0-admin` can no
 longer reach CS01 in any case.
@@ -852,12 +852,12 @@ Without it you have retired the recovery account rather than repurposed it.
 
 ---
 
-## 17. Removing `cdubois`
+## Removing `cdubois`
 
 ![cdubois removed from sg-it-admins](images/phase8/cdubois-removed.png)
 
 A synced user holding on-premises admin rights is the pattern tiering exists to break.
-Her evidence was captured in section 3 precisely because this step makes it impossible.
+Her evidence was captured in [Closing Phase 7's outstanding verifications](#closing-phase-7s-outstanding-verifications) precisely because this step makes it impossible.
 She loses LAPS decryption on CL01 and CS01, and local administrator on CS01 at her next
 logon. Both intended.
 
@@ -874,7 +874,7 @@ encryption is to the group SID rather than to the account, so adding any member 
 
 ---
 
-## 18. Exit criteria
+## Exit criteria
 
 | Criterion | Evidence | Status |
 |---|---|---|
@@ -903,7 +903,7 @@ encryption is to the group SID rather than to the account, so adding any member 
 
 ---
 
-## 19. Where this leaves the lab
+## Where this leaves the lab
 
 Three failures along the way are in
 [troubleshooting/08-tiered-administration.md](troubleshooting/08-tiered-administration.md).
@@ -923,7 +923,7 @@ sits above the whole model: `run-command` executes as SYSTEM without a logon, so
 holding `Virtual Machine Contributor` owns the forest without touching Active Directory.
 That is not reduced by anything in this phase and it was used twice during it.
 
-**A consequence accepted in section 14.** Once `Tier1-Logon-Restrictions` is
+**A consequence accepted in [Linking, one tier at a time](#linking-one-tier-at-a-time).** Once `Tier1-Logon-Restrictions` is
 linked, `t0-admin` cannot sign into CS01, which is where GPMC lives. DC01 has the
 GroupPolicy module but is Server Core, and editing User Rights Assignment is GUI-only.
 Group Policy editing therefore falls back to `labadmin`, the break-glass account, which

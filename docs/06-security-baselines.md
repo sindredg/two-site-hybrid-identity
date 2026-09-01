@@ -12,7 +12,7 @@ Problems hit along the way are in
 
 ---
 
-## 1. Which baseline
+## Which baseline
 
 The Security Compliance Toolkit ships baselines for Windows Server 2025, 2022, 2019
 and 2016 ([SCT contents](https://learn.microsoft.com/windows/security/operating-system-security/device-management/windows-security-configuration-framework/security-compliance-toolkit-10)).
@@ -22,7 +22,7 @@ one.
 **Version-matched deliberately.** The 2025 baseline is more prominent on the download
 page and would have applied without error, but settings referencing policies that do
 not exist on 2022 simply never take effect. They would then appear as unexplained
-gaps in the comparison, and half the findings in section 4 would need qualifying.
+gaps in the comparison, and half the findings in [What the baseline changed](#what-the-baseline-changed) would need qualifying.
 Reasoning recorded in [decisions.md](decisions.md).
 
 The pack contains eight GPO backups. Only one was imported:
@@ -43,7 +43,7 @@ would reach CL02 and destroy the control.
 
 ---
 
-## 2. Scope it to one client
+## Scope it to one client
 
 Both clients live in `OU=Workstations,OU=Sync`, so linking alone would harden both.
 Security filtering is what keeps CL02 clean, and it is the mechanism rehearsed on
@@ -63,7 +63,7 @@ invisible in the results.
 
 ---
 
-## 3. Predict before applying
+## Predict before applying
 
 Group Policy Modeling simulates the outcome on the domain controller without touching
 either machine, which is the safe order for anything that changes logon rights.
@@ -80,7 +80,7 @@ revert when a GPO stops applying.
 
 ---
 
-## 4. What the baseline changed
+## What the baseline changed
 
 ### An entire policy category appears
 
@@ -101,7 +101,7 @@ exist on one machine and not the other.
 ![User rights, continued](images/phase6/user-rights-cl01-continued.png)
 
 Every row reads `Baseline-MemberServer-2022` in the Winning GPO column, which is link
-order from section 2 doing its job. Three rows explain the behavior observed on the
+order from [Scope it to one client](#scope-it-to-one-client) doing its job. Three rows explain the behavior observed on the
 machine:
 
 | Policy | Setting |
@@ -152,7 +152,7 @@ Analyzer itself. Covered in the troubleshooting log with the exception made to r
 
 ---
 
-## 5. Why Policy Analyzer was abandoned
+## Why Policy Analyzer was abandoned
 
 The original plan was to capture effective state on both clients with Policy Analyzer
 and diff the exports.
@@ -173,7 +173,7 @@ every setting, which is what this phase needed.
 
 ---
 
-## 6. Exit criteria
+## Exit criteria
 
 | Criterion | Evidence | Status |
 |---|---|---|
@@ -184,7 +184,7 @@ every setting, which is what this phase needed.
 | Difference measured, not asserted | Two policy categories present on CL01, absent on CL02 | Done |
 | Something broke, and it is explained | Local account logon refused on CL01, by three named user rights | Done |
 | Deviations recorded | SmartScreen exception in `decisions.md` | Done |
-| Policy Analyzer comparison | Dropped, with reasoning in section 5 | Not done |
+| Policy Analyzer comparison | Dropped, with reasoning in [Why Policy Analyzer was abandoned](#why-policy-analyzer-was-abandoned) | Not done |
 
 ---
 

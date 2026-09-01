@@ -8,7 +8,7 @@ Root: `terraform/azure/`. Run from WSL.
 
 ---
 
-## 1. What gets built
+## What gets built
 
 | # | Resource | Terraform type | Notes |
 |---|---|---|---|
@@ -46,7 +46,7 @@ Deliberately not built:
 
 ---
 
-## 2. Files
+## Files
 
 | File | Contents |
 |---|---|
@@ -64,7 +64,7 @@ never registered.
 
 ---
 
-## 3. Deploy
+## Deploy
 
 ```bash
 cd terraform/azure
@@ -112,7 +112,7 @@ concurrent sessions, so more than one machine can be open at once.
 
 ---
 
-## 4. Cost
+## Cost
 
 | Item | Rate | Notes |
 |---|---:|---|
@@ -138,7 +138,7 @@ pass.
 
 ---
 
-## 5. Exit criteria
+## Exit criteria
 
 `terraform plan -detailed-exitcode` returns 0 against the deployed environment,
 and `terraform output bastion_connect_urls` gives a working session on both VMs.

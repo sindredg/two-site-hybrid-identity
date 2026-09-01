@@ -23,12 +23,12 @@ endpoint using `ms-Mcs-AdmPwd` attributes. Windows LAPS is in-box on Server 2019
 later, uses `msLAPS-*` attributes, supports encryption at rest, and can target Entra
 ID. Nothing is installed on any machine in this phase.
 
-Two verifications were captured later, during Phase 8, see section 8. Failures along the
+Two verifications were captured later, during Phase 8: see [Closing Phase 7's outstanding verifications](08-tiered-administration.md#closing-phase-7s-outstanding-verifications). Failures along the
 way are in [troubleshooting/07-windows-laps.md](troubleshooting/07-windows-laps.md).
 
 ---
 
-## 1. Where each command runs
+## Where each command runs
 
 | Section | Run from |
 |---|---|
@@ -45,7 +45,7 @@ Both variants of that are in the troubleshooting log.
 
 ---
 
-## 2. Extending the schema
+## Extending the schema
 
 LAPS stores passwords on the computer object, and the AD schema has no attributes
 for them until they are added. This is the one genuinely irreversible step in the
@@ -94,7 +94,7 @@ schema cache rather than waiting out the five-minute default.
 
 ---
 
-## 3. Permissions
+## Permissions
 
 Three separate rights, and keeping them separate is the security model.
 
@@ -145,12 +145,12 @@ Find-LapsADExtendedRights -Identity "OU=Workstations,OU=Sync,DC=sindredg,DC=loca
 ```
 
 **Domain Admins appears without having been granted anything**, because it holds
-*All Extended Rights* implicitly across the directory. Section 6 shows why it matters
+*All Extended Rights* implicitly across the directory. [Retrieval, Active Directory](#retrieval-active-directory) shows why it matters
 less than it looks.
 
 ---
 
-## 4. Policy
+## Policy
 
 Two GPOs differing only in backend, both linked at `OU=Workstations,OU=Sync` and
 each filtered to one client. Phase 5 rehearsed exactly this filtering on
@@ -215,7 +215,7 @@ the computer half. Same check as Phase 5.
 
 ---
 
-## 5. Applying it
+## Applying it
 
 From each client, elevated:
 
@@ -245,7 +245,7 @@ fields; only policy causes a machine to fill them.
 
 ---
 
-## 6. Retrieval, Active Directory
+## Retrieval, Active Directory
 
 ```powershell
 Get-LapsADPassword -Identity CL01
@@ -281,7 +281,7 @@ set rather than left at its default of Domain Admins.
 
 ---
 
-## 7. Retrieval, Entra ID
+## Retrieval, Entra ID
 
 CL02 backs up to the tenant, so the same command against it returns nothing:
 
@@ -306,7 +306,7 @@ above: coarser, centrally managed, audited somewhere else entirely.
 
 ---
 
-## 8. Which account is actually managed
+## Which account is actually managed
 
 The administrator account name was left unset, meaning LAPS manages the built-in
 administrator. These VMs were built by Terraform with `admin_username = labadmin`,
@@ -352,7 +352,7 @@ state of the lab.
 Two verifications were missing when this phase closed. Both needed an account inside
 `sg-it-admins`, and Phase 8 retires that membership from `cdubois`, so they were run
 immediately before the change that would have made them impossible. Evidence is in
-[08-tiered-administration.md](08-tiered-administration.md) section 3.
+[Phase 8, Closing Phase 7's outstanding verifications](08-tiered-administration.md#closing-phase-7s-outstanding-verifications).
 
 **The positive half of the permission test.** The refusal above is the negative half.
 Retrieving the same password as `cdubois`, a member of `sg-it-admins` who is not a
@@ -367,7 +367,7 @@ not a one-shot.
 
 ---
 
-## 9. Exit criteria
+## Exit criteria
 
 | Criterion | Evidence | Status |
 |---|---|---|

@@ -16,7 +16,7 @@ Those are in
 
 ---
 
-## 1. The constraint
+## The constraint
 
 Terraform created both client NICs and then refused both machines:
 
@@ -39,7 +39,7 @@ DC01 and CS01 at 2 vCPU each consume the entire free trial allowance.
 
 ---
 
-## 2. Choosing a region
+## Choosing a region
 
 **The VM size constrained the choice more than the quota did.** `Standard_B2ls_v2`
 is offered to this subscription in only three regions out of twelve checked.
@@ -64,7 +64,7 @@ To check a region before committing to it, see
 
 ---
 
-## 3. The topology
+## The topology
 
 ```mermaid
 flowchart TB
@@ -114,7 +114,7 @@ already exists, so there is no window where the clients need Azure DNS.
 
 ---
 
-## 4. What changed in Terraform
+## What changed in Terraform
 
 | Root | Contents |
 |---|---|
@@ -146,10 +146,10 @@ written out, so changing the subnet moves the machines with it.
 
 ---
 
-## 5. Deploying
+## Deploying
 
 **From the workstation.** HQ first, which removes the two orphaned NICs from the
-failed apply in section 1:
+failed apply in [The constraint](#the-constraint):
 
 ```bash
 cd terraform/azure
@@ -189,7 +189,7 @@ terraform apply
 
 ---
 
-## 6. Verifying the peering
+## Verifying the peering
 
 **From the workstation.** Both directions must read `Connected`. `Initiated` on
 either side means its partner is missing:
@@ -227,7 +227,7 @@ the round trip from Denmark East to Sweden Central and back.
 
 ---
 
-## 7. Why the other machines do not answer
+## Why the other machines do not answer
 
 The same command against CS01 and CL02 times out.
 
@@ -265,7 +265,7 @@ the domain does it in one place rather than host by host.
 
 ---
 
-## 8. Exit criteria
+## Exit criteria
 
 | Criterion | Command | Status |
 |---|---|---|
