@@ -1,7 +1,7 @@
 # Domain join
 
 The join runs **on the machine being joined**, not on CS01. It authenticates as a
-domain account the client does not yet know, which is passed to DC01 to authorise
+domain account the client does not yet know, which is passed to DC01 to authorize
 creating the computer object.
 
 Verification runs on CS01, against the directory.
