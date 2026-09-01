@@ -1,12 +1,13 @@
-# Decisions
+# Architecture decisions
 
-Choices made during the build, the alternatives rejected, and what was given up.
+Decisions are grouped by domain. Each entry records what was chosen, why, what was
+rejected, and what the choice costs.
 
----
+## Tooling and state
 
-## 1. Which tool owns which layer?
+### Which tool owns which layer
 
-**Four tools, split by what each can actually do.**
+**Decision:** Four tools, split by what each can actually do.
 
 | Layer | Tool | Why |
 |---|---|---|
@@ -15,111 +16,158 @@ Choices made during the build, the alternatives rejected, and what was given up.
 | Endpoint configuration | Group Policy | The native mechanism, and the only one without Intune |
 | Security baselines | Security Compliance Toolkit | Microsoft ships these as GPO backups, not as code |
 
-*Why not `hashicorp/ad`?* Dormant since 0.5.0 in March 2024, and it needs WinRM to the domain
-controller, which the Bastion-only design removes.
+**Alternatives:** The `hashicorp/ad` provider, which would have put the directory layer under
+Terraform too. Dormant since 0.5.0 in March 2024, and it needs WinRM to the domain controller,
+which the Bastion-only design removes.
 
-*Cost.* No plan and no drift detection for the directory layer. The scripts are idempotent, so
-re-running is the drift check.
+**Trade-off:** No plan and no drift detection for the directory layer. The scripts are
+idempotent, so re-running is the drift check.
 
----
+### Terraform root layout
 
-## 2. One Terraform root or two?
+> **Note:** Superseded by [Branch state and the shared VM module](#branch-state-and-the-shared-vm-module).
+> There are two roots now. The entry is kept because the reversal is the useful part.
 
-> **Superseded by entry 13.** There are two now. Kept because the reversal is the useful part.
+**Decision:** One root, under `terraform/azure/`.
 
-**One, under `terraform/azure/`.**
+**Why:** `terraform/azure/` and `terraform/entra/` were split on blast-radius grounds: a bad
+Conditional Access apply can lock every administrator out of a tenant, and that plan should not
+also be able to rebuild a domain controller. Sound reasoning, empty root — the Entra layer here
+is wizard-configured, and the Conditional Access that justified separate state is out of scope
+on licensing. The nesting stayed because moving a root once state exists is disruptive.
 
-`terraform/azure/` and `terraform/entra/` were split on blast-radius grounds: a bad Conditional
-Access apply can lock every administrator out of a tenant, and that plan should not also be able
-to rebuild a domain controller. Sound reasoning, empty root — the Entra layer here is wizard-
-configured, and the Conditional Access that justified separate state is out of scope on
-licensing. The nesting stayed because moving a root once state exists is disruptive.
+**Trade-off:** None at the time. The principle stands: separate state for anything whose
+worst-case failure differs from the rest of the stack.
 
-*Cost.* None currently. The principle stands: separate state for anything whose worst-case
-failure differs from the rest of the stack.
+### Branch state and the shared VM module
 
----
+**Decision:** The branch gets its own root and state at `terraform/azure-denmarkeast/`, with the
+VM resources extracted into `terraform/modules/windows-vm/`.
 
-## 3. How do you reach the VMs?
+**Why:** Ownership, change cadence and recovery boundaries all differ, and a mistake in the
+branch should never produce a plan that touches a promoted domain controller. The branch root
+owns both peering objects and reads the HQ network through a data source rather than remote
+state, so the dependency runs one way and HQ needed no changes. The module encodes past failures
+as plan-time validations: the 15-character computer name limit, Arm64 sizes that will not boot an
+x64 image, and the duplicate address that broke the Phase 0 apply.
 
-**Azure Bastion Basic. No public IPs, and the host is gated behind `enable_bastion`.**
+**Alternatives:** Migrating HQ onto the module as well. That needs `moved` blocks pointing at
+DC01, and a mistake there rebuilds the domain controller and costs Phases 1 and 2.
 
-A public IP plus an NSG rule from one home address breaks silently whenever that address
+**Trade-off:** Not a clean state boundary — the branch root creates the HQ-to-branch peering
+inside the HQ resource group. Making HQ depend on the branch existing is worse. The inline HQ
+copy can also drift from the module.
+
+### Provider version
+
+**Decision:** `azurerm` pinned to `~> 4.2`, not 5.x.
+
+**Why:** azurerm 5.0 changed the default `resource_provider_registration` from `legacy` to
+`none`. Where `Microsoft.DevTestLab` was never registered, that breaks the auto-shutdown
+schedules with an error that does not point at provider registration.
+
+**Trade-off:** Newer resources and fixes in 5.x. Revisit by setting
+`resource_providers_to_register` explicitly.
+
+## Networking and access
+
+### Reaching the VMs
+
+**Decision:** Azure Bastion Basic. No public IPs, and the host is gated behind `enable_bastion`.
+
+**Why:** A public IP plus an NSG rule from one home address breaks silently whenever that address
 rotates, and a domain controller should not publish RDP to the internet. `mstsc.exe` does not
-exist on recent Windows 11 Home ARM64 builds, so RDP was unusable anyway.
+exist on recent Windows 11 Home ARM64 builds, so RDP was unusable anyway. The $139/month figure
+quoted for Basic is the 24/7 rate, and anchoring on it is what chose Developer first; billing is
+hourly at $0.19 and Terraform destroys the host after a session.
 
-*Why not Developer?* Free, so it went in first. It mostly failed to connect, and black-screened
-then dropped when it did. The intermittency ruled out config and firewall, which fail
-identically every time. Basic needs `AzureBastionSubnet` at `10.10.2.0/26` and a Standard static
-public IP.
+**Alternatives:** The Developer SKU, which is free and went in first. It mostly failed to
+connect, and black-screened then dropped when it did. The intermittency ruled out config and
+firewall, which fail identically every time. Basic needs `AzureBastionSubnet` at `10.10.2.0/26`
+and a Standard static public IP.
 
-*Isn't it expensive?* $139/month is the 24/7 figure, and anchoring on it is what chose Developer.
-Billing is hourly at $0.19 and Terraform destroys the host after a session.
+**Trade-off:** A few dollars a month. `AzureBastionSubnet` must never carry the lab NSG — a
+partial rule set breaks Bastion in ways that look like a VM fault.
 
-*Cost.* A few dollars a month. `AzureBastionSubnet` must never carry the lab NSG — a partial
-rule set breaks Bastion in ways that look like a VM fault.
+### Static private IPs
 
----
+**Decision:** Every private IP is static.
 
-## 4. Why is every private IP static?
+**Why:** DC01 is pinned to `10.10.1.4` because the VNet DNS setting needs a fixed address. Azure
+allocates dynamic addresses from the lowest free one, which is `10.10.1.4`, and Terraform creates
+NICs in parallel, so a dynamic NIC won the race. The others are static to stop them taking DC01's
+address. See [troubleshooting/00-infrastructure.md](troubleshooting/00-infrastructure.md).
 
-**DC01 has to be, and the others have to be to stop them taking its address.**
+### Two regions
 
-DC01 is pinned to `10.10.1.4` because the VNet DNS setting needs a fixed address. Azure allocates
-dynamic addresses from the lowest free one, which is `10.10.1.4`, and Terraform creates NICs in
-parallel — a dynamic NIC won the race. See `troubleshooting/00-infrastructure.md`.
+**Decision:** Sweden Central ran out of quota, so CL01 and CL02 moved to a second region,
+resource group and state, joined by global VNet peering.
 
----
+**Why:** A free trial caps Sweden Central at 4 vCPU on two separate counters, and DC01 and CS01
+consume all of it. Forced, then kept: the move added two sites, cross-region DNS and Kerberos,
+and a genuine reason for AD Sites and Services.
 
-## 5. Which azurerm version?
+**Alternatives:** Raising the quota, which is the normal answer and is not available on a free
+trial. Dropping to one client, which Phase 6 rules out because it needs a hardened machine beside
+an untouched control, and Phase 7 rules out because it needs two LAPS backends side by side.
+Resizing to fit another region, which fails because `Standard_B2ls_v2` is offered to this
+subscription in only three, and a size difference between sites would be an artifact of the trial
+rather than a design decision.
 
-**Pinned to `~> 4.2`, not 5.x.**
+**Trade-off:** More moving parts, a small data transfer charge, and no auto-shutdown on the
+branch clients, since Denmark East does not publish `Microsoft.DevTestLab`.
 
-azurerm 5.0 changed the default `resource_provider_registration` from `legacy` to `none`. Where
-`Microsoft.DevTestLab` was never registered, that breaks the auto-shutdown schedules with an
-error that does not point at provider registration.
+## Directory
 
-*Cost.* Newer resources and fixes in 5.x. Revisit by setting `resource_providers_to_register`
-explicitly.
+### Domain controller operating system
 
----
+**Decision:** Server 2022 Core on DC01.
 
-## 6. Server Core or Desktop Experience on DC01?
+**Why:** Desktop Experience would run on 4 GB, but Core is the correct habit for a domain
+controller: smaller attack surface, fewer patches, less RAM spent on a GUI.
 
-**Core.**
+**Trade-off:** No local GUI tooling. Administration is PowerShell, or RSAT from CS01 once joined.
 
-Desktop Experience would run on 4 GB, but Core is the correct habit for a domain controller:
-smaller attack surface, fewer patches, less RAM spent on a GUI.
+### Forest name and UPN suffix
 
-*Cost.* No local GUI tooling. Administration is PowerShell, or RSAT from CS01 once joined.
+**Decision:** Forest `sindredg.local`, NetBIOS `SINDREDG`, UPN suffix
+`<tenant>.onmicrosoft.com`. The two are deliberately different, because the tenant's only
+verified domain is the onmicrosoft one.
 
----
-
-## 7. What is the forest called, and why doesn't the UPN suffix match?
-
-**Forest `sindredg.local`, NetBIOS `SINDREDG`, UPN suffix `<tenant>.onmicrosoft.com`.**
-
-The tenant's only verified domain is the onmicrosoft one, so the two are deliberately different.
-
-*Why not a single-label domain?* A bare `sindredg` is unsupported by Microsoft and breaks Entra
-Connect.
-
-*Why not a routable domain like `sindredg.com`?* It would remove the retargeting step, but no
+**Alternatives:** A single-label domain. A bare `sindredg` is unsupported by Microsoft and breaks
+Entra Connect. A routable domain such as `sindredg.com` would remove the retargeting step, but no
 such domain is owned and a DNS TXT record cannot be added to prove one.
 
-*Cost.* `.local` cannot be verified in Entra, so `@sindredg.local` users sync as
+**Trade-off:** `.local` cannot be verified in Entra, so `@sindredg.local` users sync as
 `@<tenant>.onmicrosoft.com` regardless. `03-prep-sync.ps1` adds the onmicrosoft suffix and
 retargets the seed users first. That is the state a real `.local`-era environment is in before
 its first sync, so the lab performs the remediation a migration would need.
 
----
+### Machine count and naming
 
-## 8. Where does the lab stop, given no paid licenses?
+**Decision:** Four machines. Two clients, so Phases 6 and 7 have a control. CS01 keeps its name.
 
-**At Conditional Access, not before synchronization.**
+**Why:** Phase 6 hardens CL01 and leaves CL02 untouched; Phase 7 points each at a different LAPS
+backend. A second client is the cheapest way to turn an assertion into a comparison. Management
+runs from CS01, not the DC — logging into a domain controller to run tooling makes a tiered model
+meaningless before it starts.
 
-P1 and P2 are unobtainable for this tenant. The instinct was to drop Entra ID entirely; checking
-what actually needs a license showed that was wider than necessary.
+**Alternatives:** Renaming CS01 to MGMT01, briefly implemented while Entra was out of scope, then
+reverted. The name is accurate again now CS01 runs Connect Sync; the map key is the VM name, so a
+rename replaces the VM, NIC, disk and shutdown schedule and orphans the AD computer object; and
+every Phase 1 screenshot shows CS01. Rename while a machine is empty or not at all.
+
+**Trade-off:** A fourth VM's standing disk, and a fifth that would have been a dedicated
+privileged-access workstation for Phase 8. CS01 plays the Tier 1 box instead.
+
+## Identity and synchronization
+
+### Where the lab stops on licensing
+
+**Decision:** At Conditional Access, not before synchronization.
+
+**Why:** P1 and P2 are unobtainable for this tenant. The instinct was to drop Entra ID entirely;
+checking what actually needs a license showed that was wider than necessary.
 
 | Capability | License | Available here |
 |---|---|---|
@@ -132,26 +180,21 @@ what actually needs a license showed that was wider than necessary.
 | PIM, access reviews, Identity Protection | P2 | No |
 | Password writeback, group writeback, Connect Health | P1 | No |
 
-*Why not drop Entra entirely?* Briefly implemented. It discarded the two phases that make this
-more than a generic Windows Server lab, for no licensing reason.
+**Alternatives:** Dropping Entra entirely, briefly implemented. It discarded the two phases that
+make this more than a generic Windows Server lab, for no licensing reason. Buying a single P1, at
+roughly $6 per user per month, which is affordable but was not available for this tenant at all.
+Writing the policies without applying them, which is unverifiable: Terraform that is never planned
+or applied proves nothing.
 
-*Why not buy one P1?* Roughly $6 per user per month is affordable, but no paid licenses were
-available for this tenant at all.
+**Trade-off:** The device-based Conditional Access that would have tied hybrid join to an access
+decision. [PLAN.md](PLAN.md) names it as where the lab stops.
 
-*Why not write the policies without applying them?* Terraform that is never planned or applied
-is unverifiable.
+### Connect Sync or Cloud Sync
 
-*Cost.* The device-based Conditional Access that would have tied hybrid join to an access
-decision. `PLAN.md` names it as where the lab stops.
+**Decision:** Connect Sync, because Cloud Sync cannot do hybrid Entra join.
 
----
-
-## 9. Connect Sync or Cloud Sync?
-
-**Connect Sync, because Cloud Sync cannot do hybrid Entra join.**
-
-Microsoft recommends Cloud Sync for new deployments. Device synchronization, which hybrid join
-depends on, is supported only in Connect Sync.
+**Why:** Microsoft recommends Cloud Sync for new deployments. Device synchronization, which
+hybrid join depends on, is supported only in Connect Sync.
 
 | Capability | Connect Sync | Cloud Sync |
 |---|---|---|
@@ -163,293 +206,210 @@ depends on, is supported only in Connect Sync.
 | Disconnected forests | No | Yes |
 | Cloud-managed config | No | Yes |
 
-*Cost.* An on-premises single point of failure, config living on that server rather than in the
-cloud, and a product line Microsoft is steering away from. Acceptable against a hard requirement
-Cloud Sync cannot meet.
+**Trade-off:** An on-premises single point of failure, config living on that server rather than in
+the cloud, and a product line Microsoft is steering away from. Acceptable against a hard
+requirement Cloud Sync cannot meet.
 
----
+### Password hash sync or pass-through authentication
 
-## 10. Password Hash Sync or Pass-through Authentication?
+**Decision:** Password hash sync.
 
-**PHS.**
-
-It keeps authentication working when the on-premises environment is unavailable, which for a lab
-whose domain controller is deallocated most of the time is not hypothetical. It needs no
+**Why:** It keeps authentication working when the on-premises environment is unavailable, which
+for a lab whose domain controller is deallocated most of the time is not hypothetical. It needs no
 additional agents.
 
-*Cost.* Password hashes leave the on-premises boundary, as a hash of a hash rather than the
-password or the original hash. Where policy forbids that, PTA or federation is the answer.
+**Alternatives:** Pass-through authentication or federation, which is the answer where policy
+forbids hashes leaving the on-premises boundary.
 
----
+**Trade-off:** Password hashes leave the on-premises boundary, as a hash of a hash rather than the
+password or the original hash.
 
-## 11. How many machines, and why is CS01 still called CS01?
+## Group Policy
 
-**Four. Two clients, so Phases 6 and 7 have a control.**
+### How GPOs are scoped
 
-Phase 6 hardens CL01 and leaves CL02 untouched; Phase 7 points each at a different LAPS backend.
-A second client is the cheapest way to turn an assertion into a comparison. Management runs from
-CS01, not the DC — logging into a domain controller to run tooling makes a tiered model
-meaningless before it starts.
+**Decision:** Linked at the OU holding the target, with `Authenticated Users` left in place.
+Security filtering only when two objects in the same OU must receive different policy.
 
-*Why not rename CS01 to MGMT01?* Briefly implemented while Entra was out of scope, then reverted.
-The name is accurate again now CS01 runs Connect Sync; the map key is the VM name, so a rename
-replaces the VM, NIC, disk and shutdown schedule and orphans the AD computer object; and every
-Phase 1 screenshot shows CS01. Rename while a machine is empty or not at all.
+**Why:** Names describe the target rather than the setting, so `Workstation-Baseline` can gain
+settings without going stale. The unused half of a GPO is disabled. The exception is forced in
+Phase 7, which gives CL01 and CL02 different LAPS backends inside `OU=Workstations,OU=Sync`;
+separate OUs would be structure invented to dodge a mechanism. `Loopback-Demo` in Phase 5 filters
+to CL02 alone for the same reason.
 
-*Cost.* A fourth VM's standing disk, and a fifth that would have been a dedicated
-privileged-access workstation for Phase 8. CS01 plays the Tier 1 box instead.
+**Alternatives:** Filtering everything by security group. It scales better where someone else owns
+the OU structure, but a GPO's effective scope then lives in an access control list, and "what
+applies to this machine" stops being readable off the directory tree.
 
----
-
-## 12. Why is the lab split across two regions?
-
-**Sweden Central ran out of quota, so CL01 and CL02 moved to a second region, resource group and
-state, joined by global VNet peering.**
-
-A free trial caps Sweden Central at 4 vCPU on two separate counters, and DC01 and CS01 consume
-all of it. Forced, then kept: the move added two sites, cross-region DNS and Kerberos, and a
-genuine reason for AD Sites and Services.
-
-*Why not raise the quota?* The normal answer, and not available on a free trial.
-
-*Why not one client?* Phase 6 needs a hardened machine beside an untouched control, and Phase 7
-needs two LAPS backends side by side.
-
-*Why not resize to fit another region?* `Standard_B2ls_v2` is offered to this subscription in
-only three. A size difference between sites would be an artifact of the trial rather than a
-design decision.
-
-*Cost.* More moving parts, a small data transfer charge, and no auto-shutdown on the branch
-clients, since Denmark East does not publish `Microsoft.DevTestLab`.
-
----
-
-## 13. How is the branch wired, and what is shared with HQ?
-
-**Its own root and state at `terraform/azure-denmarkeast/`, with the VM resources extracted into
-`terraform/modules/windows-vm/`.**
-
-Ownership, change cadence and recovery boundaries all differ, and a mistake in the branch should
-never produce a plan that touches a promoted domain controller. The branch root owns both peering
-objects and reads the HQ network through a data source rather than remote state, so the
-dependency runs one way and HQ needed no changes. The module encodes past failures as plan-time
-validations: the 15-character computer name limit, Arm64 sizes that will not boot an x64 image,
-and the duplicate address that broke the Phase 0 apply.
-
-*Why does only one caller use the module?* Migrating HQ needs `moved` blocks pointing at DC01,
-and a mistake there rebuilds the domain controller and costs Phases 1 and 2.
-
-*Cost.* Not a clean state boundary — the branch root creates the HQ-to-branch peering inside the
-HQ resource group. Making HQ depend on the branch existing is worse. The inline HQ copy can also
-drift from the module.
-
----
-
-## 14. How are GPOs scoped?
-
-**Linked at the OU holding the target, with `Authenticated Users` left in place. Security
-filtering only when two objects in the same OU must receive different policy.**
-
-Names describe the target rather than the setting, so `Workstation-Baseline` can gain settings
-without going stale. The unused half of a GPO is disabled.
-
-*Why not filter everything by security group?* It scales better where someone else owns the OU
-structure, but a GPO's effective scope then lives in an access control list, and "what applies to
-this machine" stops being readable off the directory tree.
-
-*Where is the exception forced?* Phase 7 gives CL01 and CL02 different LAPS backends inside
-`OU=Workstations,OU=Sync`. Separate OUs would be structure invented to dodge a mechanism.
-`Loopback-Demo` in Phase 5 filters to CL02 alone for the same reason.
-
-*Cost.* MS16-072 has to be understood rather than avoided: policy is read in the computer's
+**Trade-off:** MS16-072 has to be understood rather than avoided: policy is read in the computer's
 security context, so a GPO filtered to a user group still needs `Authenticated Users` or
 `Domain Computers` holding Read. `Set-GPPermission` cites
-[KB 3163622](https://support.microsoft.com/help/3163622).
+[KB 3163622](https://support.microsoft.com/help/3163622). Group Policy Preferences are also not
+scriptable — XML in SYSVOL plus a client-side extension registered on the GPO object, with no
+supported cmdlet. Everything else is `New-GPO`, `Set-GPRegistryValue`,
+`New-NetFirewallRule -PolicyStore` and `New-GPLink`.
 
-*What is not scriptable?* Group Policy Preferences — XML in SYSVOL plus a client-side extension
-registered on the GPO object, with no supported cmdlet. Everything else is `New-GPO`,
-`Set-GPRegistryValue`, `New-NetFirewallRule -PolicyStore` and `New-GPLink`.
+## Security baselines
 
----
+### Which baseline, and how much of it
 
-## 15. Which security baseline, and was it applied whole?
+**Decision:** The Windows Server 2022 baseline, matching the clients. The Member Server GPO only,
+filtered to CL01.
 
-**Windows Server 2022, matching the clients. The Member Server GPO only, filtered to CL01.**
-
-*Why not the Server 2025 baseline?* It is the prominent download and would apply without error,
-but settings referencing policies that do not exist on Server 2022 never take effect. They would
-surface as unexplained gaps and every finding would carry an asterisk.
-
-*Why not rebuild the clients on Server 2025?* One Terraform variable, but it costs re-joining and
+**Alternatives:** The Server 2025 baseline, which is the prominent download and would apply
+without error, but settings referencing policies that do not exist on Server 2022 never take
+effect; they would surface as unexplained gaps and every finding would carry an asterisk.
+Rebuilding the clients on Server 2025, which is one Terraform variable but costs re-joining and
 re-hybrid-joining both clients and invalidates every Phase 4 and 5 screenshot showing build 20348.
 
-*What was excepted?* The baseline sets SmartScreen to warn and prevent bypass, which fails closed
-on a machine that cannot reach the reputation service and blocked Policy Analyzer on CL01. Mark of
-the Web was removed from that one binary instead — turning SmartScreen off would have left CL01
-no longer representing the baseline it was measured against.
+**Trade-off:** One exception was needed. The baseline sets SmartScreen to warn and prevent bypass,
+which fails closed on a machine that cannot reach the reputation service and blocked Policy
+Analyzer on CL01. Mark of the Web was removed from that one binary instead — turning SmartScreen
+off would have left CL01 no longer representing the baseline it was measured against. The Server
+2022 baseline is also dated September 2021 and will age out.
 
-*Cost.* The Server 2022 baseline is dated September 2021 and will age out.
+### Measuring the baseline's effect
 
----
+**Decision:** Group Policy Modeling reports, not Policy Analyzer exports.
 
-## 16. How is the baseline's effect measured?
+**Why:** Modeling runs on the domain controller, needs nothing installed, names the winning GPO
+for every setting, and produces shareable HTML.
 
-**Group Policy Modeling reports, not Policy Analyzer exports.**
+**Alternatives:** Policy Analyzer, the tool Microsoft ships for this. It runs on the endpoint being
+measured rather than centrally, its comparison and export steps are GUI-only, and on the hardened
+client the baseline blocked it from starting.
 
-Policy Analyzer is the tool Microsoft ships for this, but it runs on the endpoint being measured
-rather than centrally, its comparison and export steps are GUI-only, and on the hardened client
-the baseline blocked it from starting. Modeling runs on the domain controller, needs nothing
-installed, names the winning GPO for every setting, and produces shareable HTML.
-
-*Cost.* Policy Analyzer compares against a machine's *effective state*, catching local
+**Trade-off:** Policy Analyzer compares against a machine's *effective state*, catching local
 configuration and drift that modeling cannot see. Theoretical in this lab, real in an estate.
 
----
+## Windows LAPS
 
-## 17. Who can read a machine's LAPS password?
+### Who can read a machine's password
 
-**`SINDREDG\sg-it-admins`, not Domain Admins. CL01 backs up to Active Directory, CL02 to Entra
-ID, and the managed account name is left unset.**
+**Decision:** `SINDREDG\sg-it-admins`, not Domain Admins. CL01 backs up to Active Directory, CL02
+to Entra ID, and the managed account name is left unset.
 
-Two independent gates: `Set-LapsADReadPasswordPermission` writes the directory ACL controlling
-who can read the attribute, and the GPO's encryption principal controls who can decrypt it.
-Setting the ACL while leaving the principal at its default would quietly hand decryption back to
-Domain Admins. Verified — reading CL01's password as `labadmin`, sole Domain Admin, returns
-`DecryptionStatus: Unauthorized`.
+**Why:** Two independent gates: `Set-LapsADReadPasswordPermission` writes the directory ACL
+controlling who can read the attribute, and the GPO's encryption principal controls who can
+decrypt it. Setting the ACL while leaving the principal at its default would quietly hand
+decryption back to Domain Admins. Verified — reading CL01's password as `labadmin`, sole Domain
+Admin, returns `DecryptionStatus: Unauthorized`.
 
-*Why a different backend per client?* CL01 to Active Directory, the backend with the interesting
-access control story and the machine Phase 6 hardened. CL02 to Entra ID, where the equivalent
-gate is a tenant role rather than a directory ACL.
+A different backend per client is deliberate: CL01 to Active Directory, the backend with the
+interesting access control story and the machine Phase 6 hardened; CL02 to Entra ID, where the
+equivalent gate is a tenant role rather than a directory ACL. The account name is unset so LAPS
+manages the built-in administrator by RID 500 rather than by name. Azure renamed that account to
+`labadmin`, so the default targets exactly the shared credential the risk register names.
 
-*Why is the account name unset?* LAPS then manages the built-in administrator by RID 500 rather
-than by name. Azure renamed that account to `labadmin`, so the default targets exactly the shared
-credential the risk register names.
+**Trade-off:** This constrains reading, not policy rewriting. A Domain Admin who cannot decrypt can
+still edit the GPO, point the encryption principal at themselves and force a rotation; the tier
+model narrows who holds that position. Encryption also ties every stored password to the group's
+SID, so deleting and recreating `sg-it-admins` makes existing passwords undecryptable —
+recoverable by forcing a rotation, but a real dependency.
 
-*Where does it stop?* A Domain Admin who cannot decrypt can still edit the GPO, point the
-encryption principal at themselves and force a rotation. It constrains reading, not policy
-rewriting. Phase 8 narrows who holds that position.
+## Tiered administration
 
-*Cost.* Encryption ties every stored password to the group's SID. Delete and recreate
-`sg-it-admins` and existing passwords become undecryptable — recoverable by forcing a rotation,
-but a real dependency.
+### Tier 0 outside Entra ID
 
----
+**Decision:** Admin accounts and `sg-tier0-admins` sit under `OU=Admin,OU=NoSync`, not beside the
+other `sg-` groups in `OU=Groups,OU=Sync`.
 
-## 18. Why is Tier 0 missing from Entra ID?
+**Why:** Sync is scoped to `OU=Sync`. A privileged on-premises account with a cloud object is a
+second attack path onto the same credential, so no tier account syncs. Tier 0 goes further:
+neither the group nor its member exists in the tenant at all, so a compromised tenant has nothing
+to find.
 
-**Admin accounts and `sg-tier0-admins` sit under `OU=Admin,OU=NoSync`, not beside the other `sg-`
-groups in `OU=Groups,OU=Sync`.**
+**Alternatives:** Keeping all `sg-` groups together, for consistent naming, which puts a Tier 0
+group in the cloud for no operational benefit. `sg-it-admins` and `sg-helpdesk` do sync, so
+`t1-admin` joining `sg-it-admins` produces a synced group whose member is out of scope — the
+clearest illustration of what OU scoping does.
 
-Sync is scoped to `OU=Sync`. A privileged on-premises account with a cloud object is a second
-attack path onto the same credential, so no tier account syncs. Tier 0 goes further: neither the
-group nor its member exists in the tenant at all, so a compromised tenant has nothing to find.
+**Trade-off:** A reader scanning the OU tree sees three `sg-` groups in one place and one in
+another. That is why this entry exists.
 
-*Why not keep all `sg-` groups together?* Consistent naming, and a Tier 0 group in the cloud for
-no operational benefit. `sg-it-admins` and `sg-helpdesk` do sync, so `t1-admin` joining
-`sg-it-admins` produces a synced group whose member is out of scope — the clearest illustration
-of what OU scoping does.
+### Groups, not accounts, in deny rules
 
-*Cost.* A reader scanning the OU tree sees three `sg-` groups in one place and one in another.
-That is why this entry exists.
+**Decision:** Groups. No individual account appears in any of the three GPOs.
 
----
-
-## 19. Do deny rules name groups or accounts?
-
-**Groups. No individual account appears in any of the three GPOs.**
-
-Deny rights are evaluated against every SID in the access token, and group memberships are in the
-token. Naming the group covers its members, and an account added to a tier later is covered
+**Why:** Deny rights are evaluated against every SID in the access token, and group memberships are
+in the token. Naming the group covers its members, and an account added to a tier later is covered
 without editing a GPO.
 
-*Why not name both?* The first pass listed `sg-it-admins` and `t1-admin` side by side, as some
-real tiered builds do against someone being removed from a group. It doubles the maintenance and,
-with one account per tier, buys nothing.
+**Alternatives:** Naming both. The first pass listed `sg-it-admins` and `t1-admin` side by side, as
+some real tiered builds do against someone being removed from a group. It doubles the maintenance
+and, with one account per tier, buys nothing.
 
-*Cost.* Tier membership is now purely group membership, so removing an account from a group
+**Trade-off:** Tier membership is now purely group membership, so removing an account from a group
 silently removes its restriction as well as its access.
 
----
+### Which logon types are denied where
 
-## 20. Which logon types are denied where?
+**Decision:** All five on the Tier 1 and Tier 2 GPOs. Interactive and Remote Desktop only on
+Tier 0.
 
-**All five on the Tier 1 and Tier 2 GPOs. Interactive and Remote Desktop only on Tier 0.**
+**Why:** A domain controller is also the SYSVOL file server every member reads Group Policy from
+and the LDAP endpoint RSAT on CS01 talks to, so denying network logon for Tier 1 and Tier 2 breaks
+both. Microsoft's guidance includes it because those accounts have no such need in an estate with
+dedicated management hosts. Downward it is kept: a Tier 0 credential that cannot make a network
+logon to a workstation cannot be replayed from one, and Tier 0 has no work to do there.
 
-*Why omit network logon on domain controllers?* A DC is also the SYSVOL file server every member
-reads Group Policy from and the LDAP endpoint RSAT on CS01 talks to. Denying it for Tier 1 and
-Tier 2 breaks both. Microsoft's guidance includes it because those accounts have no such need in
-an estate with dedicated management hosts.
+**Trade-off:** A Tier 1 or Tier 2 credential can still reach a domain controller over the network.
+A real gap, accepted because closing it breaks the lab's only management path. The network denial
+on the clients could also not be demonstrated: `net use \\CL01\C$` returns `System error 53`,
+because the Phase 6 baseline firewall drops SMB before the right is reached.
 
-*Why keep it downward?* A Tier 0 credential that cannot make a network logon to a workstation
-cannot be replayed from one, and Tier 0 has no work to do there.
+### How local Administrators is controlled
 
-*Cost.* A Tier 1 or Tier 2 credential can still reach a domain controller over the network. A
-real gap, accepted because closing it breaks the lab's only management path.
+**Decision:** Group Policy Preferences, Local Users and Groups, action Update, both delete
+checkboxes clear. Each tier GPO also names the other tier's group with Remove from this group.
 
-*What could not be demonstrated?* The network denial on the clients. `net use \\CL01\C$` returns
-`System error 53`, because the Phase 6 baseline firewall drops SMB before the right is reached.
+**Why:** Preferences do not revert. Dropping a member from the item stops it being added again but
+leaves it on machines that already have it, so local Administrators is additive only and a machine
+that acquires a wrong administrator keeps it. The explicit Remove is what closes that.
 
----
+**Alternatives:** Restricted Groups. Its *Members of this group* list replaces membership
+wholesale, stripping `Domain Admins` from every machine in scope. Preferences offers the same
+behavior behind the delete checkboxes, but off by default rather than on.
 
-## 21. How is local Administrators controlled?
+**Trade-off:** `Domain Admins` is deliberately not in either Remove list. Tier 0 on a lower-tier
+machine is handled by the deny-logon rights, which make its local membership irrelevant.
 
-**Group Policy Preferences, Local Users and Groups, action Update, both delete checkboxes clear.
-Each tier GPO also names the other tier's group with Remove from this group.**
+### Why a tier GPO carries baseline settings
 
-*Why not Restricted Groups?* Its *Members of this group* list replaces membership wholesale,
-stripping `Domain Admins` from every machine in scope. Preferences offers the same behavior
-behind the delete checkboxes, but off by default rather than on.
+**Decision:** `Tier2-Logon-Restrictions` links at `OU=Workstations` at link order 1 and carries
+`S-1-5-113` and `S-1-5-114` forward from `Baseline-MemberServer-2022`.
 
-*Why the explicit Remove?* Preferences do not revert. Dropping a member from the item stops it
-being added again but leaves it on machines that already have it, so local Administrators is
-additive only and a machine that acquires a wrong administrator keeps it.
+**Why:** User Rights Assignment does not merge across GPOs. The higher-precedence GPO supplies the
+entire member list for a right and the other's entries stop existing, so without carrying them the
+Phase 6 result that CL01 refuses the shared local administrator over Bastion silently reverts.
 
-*Cost.* `Domain Admins` is deliberately not in either Remove list. Tier 0 on a lower-tier machine
-is handled by the deny-logon rights, which make its local membership irrelevant.
+**Alternatives:** Splitting `OU=Workstations` into hardened and control sub-OUs, which preserves
+both cleanly, but that OU's distinguished name appears in Phases 5, 6 and 7 including the LAPS
+ACLs. Leaving RDP and network denies out of the tier model, which keeps CL02 pristine and removes
+the control against a Tier 0 credential being replayed from a workstation — the most valuable
+thing the phase does.
 
----
-
-## 22. Why does a tier GPO carry baseline settings?
-
-**`Tier2-Logon-Restrictions` links at `OU=Workstations` at link order 1 and carries `S-1-5-113`
-and `S-1-5-114` forward from `Baseline-MemberServer-2022`.**
-
-User Rights Assignment does not merge across GPOs. The higher-precedence GPO supplies the entire
-member list for a right and the other's entries stop existing, so without carrying them the Phase
-6 result that CL01 refuses the shared local administrator over Bastion silently reverts.
-
-*Why not split `OU=Workstations` into hardened and control sub-OUs?* It preserves both cleanly,
-but that OU's distinguished name appears in Phases 5, 6 and 7 including the LAPS ACLs.
-
-*Why not leave RDP and network denies out of the tier model?* It keeps CL02 pristine and removes
-the control against a Tier 0 credential being replayed from a workstation, which is the most
-valuable thing the phase does.
-
-*Cost.* The baseline is filtered to CL01 and the tier GPO is not, so CL02 gains those two
+**Trade-off:** The baseline is filtered to CL01 and the tier GPO is not, so CL02 gains those two
 settings. From Phase 8 onward it is a control for everything in the baseline *except* them.
 
----
+### What happens to `labadmin`
 
-## 23. What happens to `labadmin`?
+**Decision:** Retired to break-glass, not stripped: same memberships, a new password held outside
+the repository and outside Terraform, a description saying what it is for, and no routine use. It
+is named in no deny rule, so it reaches every machine.
 
-**Retired to break-glass, not stripped: same memberships, a new password held outside the
-repository and outside Terraform, a description saying what it is for, and no routine use. It is
-named in no deny rule, so it reaches every machine.**
-
-It is RID 500 — it cannot be deleted, cannot be locked out by policy, and still works when
+**Why:** It is RID 500 — it cannot be deleted, cannot be locked out by policy, and still works when
 Kerberos, DNS or a Group Policy change have broken everything else. A tier model with no exempt
 account has no recovery path, and this phase needed one twice.
 
-*Cost.* A single credential still exists which, if stolen, defeats the whole model, and nothing
-enforces that it stays unused. Risk register entry 12.
+**Trade-off:** A single credential still exists which, if stolen, defeats the whole model, and
+nothing enforces that it stays unused. See
+[risk register entry 12](risk-and-limitations.md#12-labadmin-is-exempt-from-every-deny-rule). The
+argument also stops one layer up, unsolved: Azure `run-command` executes as SYSTEM with no logon,
+so subscription rights are forest rights regardless of anything in this document. See
+[risk register entry 10](risk-and-limitations.md#10-the-azure-control-plane-is-an-unreduced-path-to-tier-0).
 
-*Where does the argument stop?* One layer up, unsolved. Azure `run-command` executes as SYSTEM
-with no logon, so subscription rights are forest rights regardless of anything in this document.
-Risk register entry 10.
-
----
-
-## Pending decisions
+## Deferred decisions
 
 | Decision | Phase | Notes |
 |---|---|---|
