@@ -188,7 +188,7 @@ was already permitted by `Workstation-Baseline`, and TCP 135 was not.
 
 **Resolution applied.** Two scoped rules added to the same GPO rather than opened by
 hand on each machine, bound to the specific service and program and limited to the
-HQ subnet. Both are in section 4 of the walkthrough.
+HQ subnet. Both are in [Structure](../05-group-policy.md#structure) in the walkthrough.
 
 **Second symptom, after the ports opened:**
 

@@ -2,7 +2,7 @@
 
 **Built:** DC01 promoted to a new forest, the virtual network pointed at it, CS01
 joined, and a directory structure the later phases target for scoped
-synchronisation and Group Policy.
+synchronization and Group Policy.
 
 > Scripts in `scripts/ad-bootstrap/`, run over Bastion. See
 > [Install a new Active Directory forest](https://learn.microsoft.com/windows-server/identity/ad-ds/deploy/install-a-new-windows-server-2012-active-directory-forest--level-200-).
@@ -18,7 +18,7 @@ Problems hit along the way, including two bugs in our own scripts, are in
 
 ---
 
-## 1. What gets created
+## What gets created
 
 | Object | Name | Purpose |
 |---|---|---|
@@ -50,7 +50,7 @@ filter on.
 
 ---
 
-## 2. Promoting DC01
+## Promoting DC01
 
 DC01 runs Server Core, so a Bastion session lands on a command prompt rather than
 a desktop.
@@ -76,7 +76,7 @@ Install-ADDSForest -DomainName sindredg.local -DomainNetbiosName SINDREDG -Insta
 **`-InstallDns`.** A domain controller has to answer the SRV record lookups clients
 use to find it. A machine that only knows the name `sindredg.local` cannot discover
 DC01's address unless something authoritative for that zone answers, which is why
-section 3 points the whole virtual network at 10.10.1.4.
+[Pointing the virtual network at the DC](#pointing-the-virtual-network-at-the-dc) points the whole virtual network at 10.10.1.4.
 
 ![AD DS installed, restarting](images/phase1/addsforest-restart.png)
 
@@ -100,7 +100,7 @@ Get-ADDomain | Select-Object DNSRoot, NetBIOSName, DomainMode
 
 ---
 
-## 3. Pointing the virtual network at the DC
+## Pointing the virtual network at the DC
 
 This is the step that silently breaks the lab if skipped. Azure-provided DNS at
 168.63.129.16 knows nothing about `sindredg.local`, so a join attempted before this
@@ -159,7 +159,7 @@ WRITABLE`.
 
 ---
 
-## 4. Joining CS01 to the domain
+## Joining CS01 to the domain
 
 The credential has a non-obvious answer. Promotion migrated the local `labadmin`
 account into the directory and made it the **sole member of Domain Admins**, so
@@ -180,7 +180,7 @@ comfortable way to administer a Server Core domain controller from here on.
 
 ---
 
-## 5. Building the directory
+## Building the directory
 
 The initial password is prompted for rather than passed on the command line, so it
 does not land in shell history.
@@ -210,7 +210,7 @@ object exists, which they acquired the hard way; see the troubleshooting log.
 
 ---
 
-## 6. Preparing the directory for sync
+## Preparing the directory for sync
 
 The forest is `sindredg.local`. The tenant's only verified domain is
 `<tenant>.onmicrosoft.com`. Because `.local` cannot be verified in
@@ -252,7 +252,7 @@ reports `exists`, every user reports `ok`, and the blockers section is empty.
 ![Clean re-run](images/phase1/prep-sync-clean.png)
 
 The script also checks the three things that most commonly cause a user to fail
-synchronisation later, when the error surfaces hours after the cause:
+synchronization later, when the error surfaces hours after the cause:
 
 | Check | Why it blocks sync |
 |---|---|
@@ -262,7 +262,7 @@ synchronisation later, when the error surfaces hours after the cause:
 
 ---
 
-## 7. Exit criteria
+## Exit criteria
 
 | Criterion | Command | Status |
 |---|---|---|
@@ -281,5 +281,5 @@ synchronisation later, when the error surfaces hours after the cause:
 ## Next
 
 [Phase 2](02-entra-connect.md) installs Entra Connect Sync on CS01 and
-synchronises the five seeded users into Microsoft Entra ID. Sync is free with any
+synchronizes the five seeded users into Microsoft Entra ID. Sync is free with any
 Azure subscription.

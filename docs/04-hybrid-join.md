@@ -10,7 +10,7 @@ manages lives in Entra ID.
 > in this phase: [ad-sites.md](../cmd-sheets/ad-sites.md), [ad-join.md](../cmd-sheets/ad-join.md)
 > and [entra-sync.md](../cmd-sheets/entra-sync.md).
 
-Hybrid join needs no licence. Only the Conditional Access that would consume the
+Hybrid join needs no license. Only the Conditional Access that would consume the
 device state needs P1, and that is where this lab stops.
 
 Two failures along the way are in
@@ -18,7 +18,7 @@ Two failures along the way are in
 
 ---
 
-## 1. Where each command runs
+## Where each command runs
 
 Several commands in this phase look similar and do different things depending on
 where you are.
@@ -34,7 +34,7 @@ where you are.
 
 ---
 
-## 2. AD Sites and Services
+## AD Sites and Services
 
 Done before the join, not after. A client determines its site at join time, so
 joining first would land both machines in `Default-First-Site-Name` and leave them
@@ -77,10 +77,10 @@ Policy processing anything to act on.
 
 ---
 
-## 3. Domain join
+## Domain join
 
 Run from each client. The machine joins itself, authenticating as a domain account
-it does not yet know, which is passed to DC01 to authorise creating the computer
+it does not yet know, which is passed to DC01 to authorize creating the computer
 object.
 
 ### Pre-flight, from CL01
@@ -107,12 +107,12 @@ nltest /dsgetdc:sindredg.local
 | Field | Value | What it confirms |
 |---|---|---|
 | `DC` / `Address` | `DC01.sindredg.local` at `10.10.1.4` | DNS, LDAP and Kerberos all reach across the peering |
-| `Our Site Name` | `Branch-DenmarkEast` | The client places itself from its own address. Section 2 worked |
+| `Our Site Name` | `Branch-DenmarkEast` | The client places itself from its own address. [AD Sites and Services](#ad-sites-and-services) worked |
 | `Dc Site Name` | `HQ-SwedenCentral` | It also knows the DC is in a different site, which is the point |
 | `Flags` | `PDC GC DS LDAP KDC TIMESERV WRITABLE` | The DC advertises every role the join needs |
 
 Two different site names in one output is what a multi-site directory looks like.
-Before section 2 both read `Default-First-Site-Name`.
+Before [AD Sites and Services](#ad-sites-and-services) both read `Default-First-Site-Name`.
 
 ### Join, from CL01
 
@@ -178,7 +178,7 @@ effect of joining. ICMP stays blocked either way until Phase 5 enables it.
 
 ---
 
-## 4. Configuring hybrid join
+## Configuring hybrid join
 
 **From CS01.** Entra Connect, then **Configure device options**:
 
@@ -235,12 +235,12 @@ tenant to register against.
 
 ---
 
-## 5. Device registration
+## Device registration
 
 **Hybrid join needs the computer objects in Entra before a client can register.**
 The device object in the cloud is created from the synced computer object, and the
 client then completes registration against it. This is the reason Phase 2 used
-Connect Sync rather than Cloud Sync: Cloud Sync does not synchronise devices.
+Connect Sync rather than Cloud Sync: Cloud Sync does not synchronize devices.
 
 **From CS01**, force a sync rather than waiting for the 30 minute timer. The
 `ADSync` module ships with Entra Connect but sits outside the default module path,
@@ -308,7 +308,7 @@ Start-ScheduledTask -TaskPath "\Microsoft\Windows\Workplace Join\" -TaskName "Au
 
 ---
 
-## 6. Verification
+## Verification
 
 In the Entra admin center under Devices, CL01 registered first and CL02 lagged:
 
@@ -340,7 +340,7 @@ having to guess.
 
 ---
 
-## 7. Exit criteria
+## Exit criteria
 
 | Criterion | Command | Status |
 |---|---|---|
@@ -358,5 +358,5 @@ having to guess.
 ## Next
 
 [Phase 5](05-group-policy.md) builds the Group Policy estate these clients receive,
-including the firewall policy that makes the ping behaviour in
+including the firewall policy that makes the ping behavior in
 [Phase 3](03-branch-network.md) a solved problem rather than an observation.

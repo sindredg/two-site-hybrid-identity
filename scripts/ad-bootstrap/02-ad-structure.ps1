@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Creates the OU structure, security groups and seed users to synchronise.
+    Creates the OU structure, security groups and seed users to synchronize.
 
 .DESCRIPTION
     Run on DC01 after promotion. Idempotent - every object is checked before it is

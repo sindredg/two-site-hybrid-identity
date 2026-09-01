@@ -6,8 +6,10 @@ workstation against the Azure control plane.
 
 See [Phase 8](../docs/08-tiered-administration.md).
 
-> **Sections marked *pending* have not been run yet.** They are the planned commands,
-> not captured output. Phase 8 stops after CS01 is brought under LAPS.
+> **Note:** Every command here has been run. The one piece of evidence Phase 8 did not
+> capture is the 4625 event-log record of a cross-tier refusal; the refusals themselves are
+> captured as `runas` output. See
+> [Phase 8, Exit criteria](../docs/08-tiered-administration.md#exit-criteria).
 
 ## Recovery, before anything else
 
@@ -143,7 +145,7 @@ secedit /export /cfg C:\Windows\Temp\rights.inf /areas USER_RIGHTS
 Select-String -Path C:\Windows\Temp\rights.inf -Pattern 'SeDeny'
 ```
 
-## Authoring the deny GPOs, pending
+## Authoring the deny GPOs
 
 GPMC: **Computer Configuration, Policies, Windows Settings, Security Settings, Local
 Policies, User Rights Assignment.** No cmdlet exists. The setting is not
@@ -195,7 +197,7 @@ accumulated, and clean up anything already applied by hand:
 Remove-LocalGroupMember -Group Administrators -Member 'SINDREDG\sg-it-admins'
 ```
 
-## Verification, pending
+## Verification
 
 ```powershell
 Get-WinEvent -FilterHashtable @{LogName='Security'; Id=4625} -MaxEvents 5 | Format-List TimeCreated, Message

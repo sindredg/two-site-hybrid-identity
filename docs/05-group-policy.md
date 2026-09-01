@@ -9,12 +9,12 @@ arrive as GPOs.
 > used in this phase: [group-policy.md](../cmd-sheets/group-policy.md).
 
 One deliberate gap: the loopback demonstration is set up but not run, for the reason
-in section 9. Failures along the way are in
+in [The loopback demonstration](#the-loopback-demonstration-and-why-it-was-not-run). Failures along the way are in
 [troubleshooting/05-group-policy.md](troubleshooting/05-group-policy.md).
 
 ---
 
-## 1. Where each command runs
+## Where each command runs
 
 Several commands in this phase exist on more than one machine and do different
 things depending on where you are.
@@ -34,7 +34,7 @@ rather than the account, which is the first entry in the troubleshooting log.
 
 ---
 
-## 2. Carried-forward items
+## Carried-forward items
 
 Two items were parked on this phase by earlier ones, and both are closed here.
 
@@ -92,7 +92,7 @@ unhardened.
 
 ---
 
-## 3. The Central Store
+## The Central Store
 
 ADMX templates live locally on each machine, so the settings an administrator can
 see depend on which machine opened GPMC. The Central Store puts one copy in SYSVOL
@@ -223,7 +223,7 @@ folder. Deleting the folder by hand would leave the other half behind.
 
 ---
 
-## 4. Structure
+## Structure
 
 Policy is linked to the OU structure built in Phase 1. Names describe the target
 rather than the setting, so a GPO can gain settings without its name going stale.
@@ -267,7 +267,7 @@ used is exactly the two subnets Phase 4 registered in AD Sites and Services.
 `AzureBastionSubnet` is absent, because Bastion reaches the VMs over RDP and never
 pings them.
 
-**Two WMI rules, added once the verification in section 6 needed them.** Querying
+**Two WMI rules, added once the verification in [Verification: the policy reaching a client](#verification-the-policy-reaching-a-client) needed them.** Querying
 resultant policy from CS01 goes over RPC and WMI, which the client firewall also
 blocks. Rather than open ports by hand on each machine, it became part of the
 baseline:
@@ -330,7 +330,7 @@ Set-GPRegistryValue -Name "User-Standard" -Key "HKCU\Software\Policies\Microsoft
 ![Intranet zone setting](images/phase5/user-standard-zone-2103.png)
 
 A screen saver lock, which is both a reasonable default and a value the loopback
-demonstration in section 7 will deliberately conflict with:
+demonstration in [A seed user on a client](#a-seed-user-on-a-client) will deliberately conflict with:
 
 ```powershell
 Set-GPRegistryValue -Name "User-Standard" -Key "HKCU\Software\Policies\Microsoft\Windows\Control Panel\Desktop" -ValueName "ScreenSaveTimeOut" -Type String -Value "600"
@@ -394,7 +394,7 @@ means every user or computer in the linked OU receives the policy.
 
 ---
 
-## 5. Security filtering
+## Security filtering
 
 Two clients sit in one OU and Phase 7 will give them different LAPS policies. That
 requirement is what forces filtering, and it is rehearsed here on a GPO where a
@@ -443,7 +443,7 @@ Scope tab is a readable view of that ACL.
 
 ---
 
-## 6. Verification: the policy reaching a client
+## Verification: the policy reaching a client
 
 Group Policy reporting its own success is weak evidence. The firewall rule is better,
 because its effect is observable from a second machine that has no part in the policy.
@@ -575,7 +575,7 @@ on a real machine.
 
 ---
 
-## 7. A seed user on a client
+## A seed user on a client
 
 Proving that user policy follows the user object needs a user whose object sits in
 `OU=Users,OU=Sync`. `labadmin` does not qualify, so `cdubois` was used, one of the
@@ -616,7 +616,7 @@ possible.
 
 ---
 
-## 8. Targeting is by OU, not by machine
+## Targeting is by OU, not by machine
 
 `gpresult` on CS01 before any of this existed:
 
@@ -631,7 +631,7 @@ Applied Group Policy Objects
 **CS01 sits in `CN=Computers`, not in an OU**, because it joined the domain in
 Phase 1 before the structure existed. `Workstation-Baseline` is linked to
 `OU=Workstations,OU=Sync` and does not reach it, which is correct for a management
-server. That is what the ping asymmetry in section 6 is measuring.
+server. That is what the ping asymmetry in [Verification: the policy reaching a client](#verification-the-policy-reaching-a-client) is measuring.
 
 It cannot be fixed by linking either, because `CN=Computers` is a container rather
 than an OU and **a GPO cannot be linked to a container**. That is why Phase 1 built a
@@ -639,7 +639,7 @@ real OU structure and why Phase 4 joined both clients with `-OUPath`.
 
 ---
 
-## 9. The loopback demonstration, and why it was not run
+## The loopback demonstration, and why it was not run
 
 `Loopback-Demo` exists, is linked, and is filtered to CL02. What it does not contain
 is the loopback setting itself.
@@ -673,12 +673,12 @@ Remove-GPLink -Name "Loopback-Demo" -Target "OU=Workstations,OU=Sync,DC=sindredg
 
 `UserVersion` and `ComputerVersion` both still reading `AD Version: 0, SysVol
 Version: 0` confirms the GPO was created, linked and filtered and never had a setting
-written to it. The filtering work in section 5 stands on its own, and the GPO
+written to it. The filtering work in [Security filtering](#security-filtering) stands on its own, and the GPO
 survives unlinked.
 
 ---
 
-## 10. Exit criteria
+## Exit criteria
 
 | Criterion | Command | Status |
 |---|---|---|
@@ -694,7 +694,7 @@ survives unlinked.
 | Resultant policy from the management server | `Get-GPResultantSetOfPolicy` for CL01, and CL02 with a user | Done |
 | Targeting follows the OU | CS01 in `CN=Computers` receives nothing, and still refuses ICMP | Done |
 | CL02 left clean for Phase 6 | `Loopback-Demo` unlinked, both versions still at 0 | Done |
-| Loopback demonstrated | Deferred, with the reason recorded in section 9 | Deferred |
+| Loopback demonstrated | Deferred, with the reason recorded in [The loopback demonstration](#the-loopback-demonstration-and-why-it-was-not-run) | Deferred |
 
 ---
 

@@ -1,6 +1,6 @@
 # Phase 2. Entra Connect Sync
 
-**Built:** the five seeded users from `sindredg.local` synchronised into Microsoft
+**Built:** the five seeded users from `sindredg.local` synchronized into Microsoft
 Entra ID, scoped to one OU, so hybrid join in Phase 4 has identities to attach
 devices to. Five users synced with correct UPNs, nothing from the excluded OU
 present, zero errors.
@@ -15,7 +15,7 @@ Problems hit along the way are in
 
 ---
 
-## 1. Starting the lab
+## Starting the lab
 
 DC01 starts first, always. CS01 has no DNS without it, and starting the member
 server alone gives a machine that cannot resolve anything, including the internet.
@@ -32,7 +32,7 @@ bills hourly whether or not anything is connected to it.
 
 ---
 
-## 2. Prerequisites
+## Prerequisites
 
 Checked on CS01 before downloading anything:
 
@@ -64,7 +64,7 @@ SSL 3.0, TLS 1.0 and TLS 1.1 all `Enabled = 0x0`. TLS 1.2 `Enabled = 0x1`.
 
 ---
 
-## 3. Installation
+## Installation
 
 Downloaded from the Entra admin center, which replaced the Download Center as the
 only source.
@@ -137,7 +137,7 @@ stored `MSOL_` credential hands over directory read access.
 
 ---
 
-## 4. Scoping the sync
+## Scoping the sync
 
 The page that justifies the OU structure built in Phase 1:
 
@@ -174,7 +174,7 @@ both need P1.
 
 ---
 
-## 5. Configuration complete
+## Configuration complete
 
 ![Configuration complete](images/phase2/configuration-complete.png)
 
@@ -201,7 +201,7 @@ which turns a Phase 5 task from invented to requested.
 
 ---
 
-## 6. What this created in the cloud
+## What this created in the cloud
 
 Connect Sync does not authenticate to Entra with a stored password. It registers
 an **application** and authenticates with a certificate.
@@ -236,7 +236,7 @@ rather than a hunt for an account.
 
 ---
 
-## 7. Verification
+## Verification
 
 ```powershell
 Start-ADSyncSyncCycle -PolicyType Initial
@@ -268,7 +268,7 @@ at all, which is what proves the OU filtering did real work.
 
 ---
 
-## 8. Exit criteria
+## Exit criteria
 
 ![ADSync running at 2.6.84.0, and Get-ADUser unavailable on CS01](images/phase2/install-state-check.png)
 
@@ -287,7 +287,7 @@ arrives with RSAT, which CS01 gained later.
 
 ---
 
-## 9. Carried forward
+## Carried forward
 
 | Item | Where |
 |---|---|
@@ -309,14 +309,14 @@ Entra ID in Phase 7.
 
 ## Licensing
 
-Connect Sync needs no licence. Microsoft: *"License requirements for using
+Connect Sync needs no license. Microsoft: *"License requirements for using
 Microsoft Entra Connect V2: Using this feature is free and included in your Azure
 subscription."*
 
-What does need licences: Conditional Access (P1), PIM and access reviews (P2),
+What does need licenses: Conditional Access (P1), PIM and access reviews (P2),
 Entra Connect **Health** (P1, the monitoring add-on rather than sync itself), and
 password and group writeback (P1, not used here).
 
-**Version deadline.** Every build below **2.5.79.0 stops synchronising on 30
+**Version deadline.** Every build below **2.5.79.0 stops synchronizing on 30
 September 2026**. This lab installed 2.6.84.0.
 

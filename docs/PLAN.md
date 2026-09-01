@@ -9,21 +9,21 @@ phase carried forward.
 
 | Phase | Focus | Status | Walkthrough |
 |---|---|---|---|
-| 0 | Azure infrastructure: network, VMs, Bastion | Completed | [00-infrastructure.md](docs/00-infrastructure.md) |
-| 1 | Forest, DNS, domain join, directory | Completed | [01-ad-environment.md](docs/01-ad-environment.md) |
-| 2 | Entra Connect Sync, scoped to one OU | Completed | [02-entra-connect.md](docs/02-entra-connect.md) |
-| 3 | Branch office network, second region | Completed | [03-branch-network.md](docs/03-branch-network.md) |
-| 4 | AD sites, domain join, hybrid Entra join | Completed | [04-hybrid-join.md](docs/04-hybrid-join.md) |
-| 5 | Group Policy foundation | Completed | [05-group-policy.md](docs/05-group-policy.md) |
-| 6 | Security baselines | Completed | [06-security-baselines.md](docs/06-security-baselines.md) |
-| 7 | Windows LAPS, both backends | Completed | [07-windows-laps.md](docs/07-windows-laps.md) |
-| 8 | Tiered administration | Completed | [08-tiered-administration.md](docs/08-tiered-administration.md) |
+| 0 | Azure infrastructure: network, VMs, Bastion | Completed | [00-infrastructure.md](00-infrastructure.md) |
+| 1 | Forest, DNS, domain join, directory | Completed | [01-ad-environment.md](01-ad-environment.md) |
+| 2 | Entra Connect Sync, scoped to one OU | Completed | [02-entra-connect.md](02-entra-connect.md) |
+| 3 | Branch office network, second region | Completed | [03-branch-network.md](03-branch-network.md) |
+| 4 | AD sites, domain join, hybrid Entra join | Completed | [04-hybrid-join.md](04-hybrid-join.md) |
+| 5 | Group Policy foundation | Completed | [05-group-policy.md](05-group-policy.md) |
+| 6 | Security baselines | Completed | [06-security-baselines.md](06-security-baselines.md) |
+| 7 | Windows LAPS, both backends | Completed | [07-windows-laps.md](07-windows-laps.md) |
+| 8 | Tiered administration | Completed | [08-tiered-administration.md](08-tiered-administration.md) |
 
 Each phase document ends in an exit-criteria table with the command that proves it.
 
 > **Everything through Phase 7 is free.** Connect Sync, hybrid Entra join and Windows LAPS all work
 > on Entra ID Free. The lab stops before Conditional Access (P1) and PIM (P2). See
-> [docs/decisions.md](docs/decisions.md).
+> [docs/decisions.md](decisions.md).
 
 ---
 
@@ -59,7 +59,7 @@ filtered and unlinked.
 decryption as `sg-it-admins`, and a rotation. Both needed an account inside `sg-it-admins`, and
 Phase 8 removes that membership from `cdubois`, so the evidence was banked immediately before the
 change that would have made it impossible. See
-[08-tiered-administration.md](docs/08-tiered-administration.md) section 3.
+[Phase 8, Closing Phase 7's outstanding verifications](08-tiered-administration.md#closing-phase-7s-outstanding-verifications).
 
 ## Where the lab stops
 
@@ -71,12 +71,12 @@ Phase 8 completed the tier model. No account reaches a machine outside its tier,
 LAPS, and `labadmin` is retired to break-glass. Two verifications were not captured: event log
 correlation for the refusals, and the network-path denial, which the client firewall blocks before
 it reaches the right being tested. Both are named in
-[08-tiered-administration.md](docs/08-tiered-administration.md) section 18.
+[Phase 8, Exit criteria](08-tiered-administration.md#exit-criteria).
 
 **What the lab does not solve.** `labadmin` is deliberately exempt from every deny rule so a
 recovery path exists, and the Azure control plane sits above the whole model, since `run-command`
 executes as SYSTEM without a logon. Entries 10 to 12 in
-[docs/risk-and-limitations.md](docs/risk-and-limitations.md).
+[docs/risk-and-limitations.md](risk-and-limitations.md).
 
 ## Operating notes
 

@@ -62,7 +62,7 @@ policy had broken. The Azure VM agent was the only remaining way in:
 `Get-LocalGroupMember -Group Administrators` returned one entry, `CS01\labadmin`, a
 local user. `Domain Admins` and `sg-it-admins` were both gone.
 
-**Cause.** The `Remove from this group` entry added at the end of section 8 was saved
+**Cause.** The `Remove from this group` entry added at the end of [Local Administrators by policy](../08-tiered-administration.md#local-administrators-by-policy) was saved
 with **Delete all member groups** ticked, on the second of the two Local Group items:
 
 ![deleteAllGroups on the second item](../images/phase8/deleteallgroups-in-xml.png)
@@ -109,7 +109,7 @@ Ticking one on an item whose only purpose is to remove a single group is as dest
 as ticking it on the item that adds them, and the dialog gives no indication of the
 difference. Check `deleteAllGroups` in the GPO report after authoring, not the dialog.
 
-**On the recovery path.** The escape hatch tested in section 2 was needed for real, and
+**On the recovery path.** The escape hatch tested in [The recovery path](../08-tiered-administration.md#the-recovery-path-proven-before-anything-else) was needed for real, and
 it was needed because the broken machine was the management machine. A second Bastion
 session would not have helped, since reconnecting requires a fresh logon.
 
@@ -122,7 +122,7 @@ Bastion connects to `10.10.1.5` by IP address. With no hostname there is no serv
 principal name to request a ticket for, so authentication falls back to NTLM and no 4768
 or 4769 is generated at all. The absence of Kerberos events was read as a possible
 trust failure before that was understood. It also means DC-side evidence for the
-cross-tier tests in section 16 is a successful **4776**, not a 4768.
+cross-tier tests in [The refusals](../08-tiered-administration.md#the-refusals) is a successful **4776**, not a 4768.
 
 ---
 

@@ -55,7 +55,7 @@ so Terraform ran them concurrently. CS01 released `.4` four seconds too late.
 was free and DC01's NIC created cleanly.
 
 **Trade-off.** `terraform apply -parallelism=1` would have avoided it in one pass
-at the cost of serialising the entire run. For a one-off migration, running twice
+at the cost of serializing the entire run. For a one-off migration, running twice
 is cheaper.
 
 This is a transition cost only. A build from scratch never hits it, because the
