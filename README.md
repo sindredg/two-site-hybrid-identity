@@ -1,10 +1,10 @@
 # AD DS hosted on azure IaaS, Entra synced, Security Baselines, tierd admin access
 
-An Active Directory forest in Azure, synchronised to Microsoft Entra ID, serving a branch office in
+An Active Directory forest in Azure, synchronized to Microsoft Entra ID, serving a branch office in
 a second region over VNet peering, with hybrid-joined endpoints managed and hardened through Group
 Policy, Microsoft security baselines and Windows LAPS.
 
-**All nine phases are built and verified.** The forest is synchronised, the endpoints are
+**All nine phases are built and verified.** The forest is synchronized, the endpoints are
 hardened, every local administrator password rotates on its own, and administration is split
 into three tiers with enforced logon boundaries. See the
 [phase documentation](docs/), [decisions](docs/decisions.md),
@@ -15,7 +15,7 @@ The Azure footprint is Terraform, the directory is idempotent PowerShell, and th
 configuration is Group Policy built from cmdlets wherever one exists. The only hand-clicked parts
 are the tooling Microsoft ships as a wizard, and the parts of Group Policy that have no cmdlet.
 
-> **Entra ID licence in this project is "Free-tier".** Connect Sync, hybrid Entra join, and Windows LAPS are all included. 
+> **Entra ID license in this project is "Free-tier".** Connect Sync, hybrid Entra join, and Windows LAPS are all included. 
 > For further Entra ID hardening see previous project; [Access Control and Identity Governance](https://github.com/sindredg/Access-Control-and-Identity-Governance) which covers CA, PIM, access reviews, etc in Entra.
 >[decisions.md](docs/decisions.md).
 
@@ -96,7 +96,7 @@ published in Denmark East, so the branch clients are deallocated by hand.
 |---|---|---|
 | Azure infrastructure | Terraform `azurerm` | Declarative, diffable, destroys cleanly |
 | Forest, OUs, users, groups | PowerShell | Terraform cannot promote a forest, and the `hashicorp/ad` provider is dormant |
-| Directory synchronisation | Entra Connect Sync | Cloud Sync cannot do device sync, so it cannot do hybrid join |
+| Directory synchronization | Entra Connect Sync | Cloud Sync cannot do device sync, so it cannot do hybrid join |
 | Endpoint configuration | Group Policy | The native mechanism, and the only one available without Intune |
 | Security baselines | Microsoft Security Compliance Toolkit | Microsoft ships these as GPO backups, not as code. Imported, then measured with Group Policy Modeling |
 
@@ -105,7 +105,7 @@ Deliberately not used:
 | Item | Why not |
 |---|---|
 | Entra Cloud Sync | No device synchronization, therefore no hybrid join |
-| Microsoft Intune | Licence-gated. Group Policy delivers the LAPS policy on hybrid-joined devices without it |
+| Microsoft Intune | License-gated. Group Policy delivers the LAPS policy on hybrid-joined devices without it |
 | `hashicorp/ad` provider | v0.5.0, March 2024, dormant, and needs WinRM the Bastion-only design removes |
 | VM public IPs | Removed once Bastion was in place |
 
@@ -148,7 +148,7 @@ error strings verbatim so they are searchable.
 
 ## 4. What is deployed
 
-**Infrastructure and directory.** Two regions up, forest running, five seed users synchronised into
+**Infrastructure and directory.** Two regions up, forest running, five seed users synchronized into
 Entra ID with the `NoSync` OU correctly absent. Both branch clients are Microsoft Entra hybrid
 joined, holding an AD identity and a cloud registration at once. `nltest` from a branch client
 reports `Our Site Name: Branch-DenmarkEast` against `Dc Site Name: HQ-SwedenCentral`, and DC01

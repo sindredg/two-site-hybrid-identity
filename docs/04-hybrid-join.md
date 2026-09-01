@@ -10,7 +10,7 @@ manages lives in Entra ID.
 > in this phase: [ad-sites.md](../cmd-sheets/ad-sites.md), [ad-join.md](../cmd-sheets/ad-join.md)
 > and [entra-sync.md](../cmd-sheets/entra-sync.md).
 
-Hybrid join needs no licence. Only the Conditional Access that would consume the
+Hybrid join needs no license. Only the Conditional Access that would consume the
 device state needs P1, and that is where this lab stops.
 
 Two failures along the way are in
@@ -80,7 +80,7 @@ Policy processing anything to act on.
 ## 3. Domain join
 
 Run from each client. The machine joins itself, authenticating as a domain account
-it does not yet know, which is passed to DC01 to authorise creating the computer
+it does not yet know, which is passed to DC01 to authorize creating the computer
 object.
 
 ### Pre-flight, from CL01
@@ -240,7 +240,7 @@ tenant to register against.
 **Hybrid join needs the computer objects in Entra before a client can register.**
 The device object in the cloud is created from the synced computer object, and the
 client then completes registration against it. This is the reason Phase 2 used
-Connect Sync rather than Cloud Sync: Cloud Sync does not synchronise devices.
+Connect Sync rather than Cloud Sync: Cloud Sync does not synchronize devices.
 
 **From CS01**, force a sync rather than waiting for the 30 minute timer. The
 `ADSync` module ships with Entra Connect but sits outside the default module path,
@@ -358,5 +358,5 @@ having to guess.
 ## Next
 
 [Phase 5](05-group-policy.md) builds the Group Policy estate these clients receive,
-including the firewall policy that makes the ping behaviour in
+including the firewall policy that makes the ping behavior in
 [Phase 3](03-branch-network.md) a solved problem rather than an observation.

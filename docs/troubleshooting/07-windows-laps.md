@@ -17,7 +17,7 @@ WARNING: Current process is not running as a local administrator
 Invoke-LapsPolicyProcessing : This cmdlet must be run by a local administrator
 ```
 
-**Cause.** Correct behaviour, not a fault. Phase 5 added `cdubois` to
+**Cause.** Correct behavior, not a fault. Phase 5 added `cdubois` to
 `Remote Desktop Users` on CL02 so a seed user could sign in over Bastion for the
 resultant-policy work. That grants sign-in and nothing else.
 
@@ -98,7 +98,7 @@ answers neither.
 Event **10015** in the same output listed four reasons the password needed updating,
 including "the policy is configured for password encryption but the encrypted
 password attribute was not found". All four are normal on a first run and none of
-them were faults, which is worth recognising so they are not read as four more
+them were faults, which is worth recognizing so they are not read as four more
 problems.
 
 ---

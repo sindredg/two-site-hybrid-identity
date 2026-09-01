@@ -1,6 +1,6 @@
 # Phase 2. Entra Connect Sync
 
-**Built:** the five seeded users from `sindredg.local` synchronised into Microsoft
+**Built:** the five seeded users from `sindredg.local` synchronized into Microsoft
 Entra ID, scoped to one OU, so hybrid join in Phase 4 has identities to attach
 devices to. Five users synced with correct UPNs, nothing from the excluded OU
 present, zero errors.
@@ -309,14 +309,14 @@ Entra ID in Phase 7.
 
 ## Licensing
 
-Connect Sync needs no licence. Microsoft: *"License requirements for using
+Connect Sync needs no license. Microsoft: *"License requirements for using
 Microsoft Entra Connect V2: Using this feature is free and included in your Azure
 subscription."*
 
-What does need licences: Conditional Access (P1), PIM and access reviews (P2),
+What does need licenses: Conditional Access (P1), PIM and access reviews (P2),
 Entra Connect **Health** (P1, the monitoring add-on rather than sync itself), and
 password and group writeback (P1, not used here).
 
-**Version deadline.** Every build below **2.5.79.0 stops synchronising on 30
+**Version deadline.** Every build below **2.5.79.0 stops synchronizing on 30
 September 2026**. This lab installed 2.6.84.0.
 

@@ -428,7 +428,7 @@ The two delete boxes do the same thing by another route. Ticking either makes th
 authoritative and strips every member not listed. Both stay unticked.
 
 **Preferences rather than Restricted Groups.** Restricted Groups' *Members of this group*
-list replaces membership wholesale, which is the same destructive behaviour but on by
+list replaces membership wholesale, which is the same destructive behavior but on by
 default. Group Policy Preferences with the Update action is additive. Recorded in
 [decisions.md](decisions.md).
 

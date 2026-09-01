@@ -2,7 +2,7 @@
 
 **Built:** DC01 promoted to a new forest, the virtual network pointed at it, CS01
 joined, and a directory structure the later phases target for scoped
-synchronisation and Group Policy.
+synchronization and Group Policy.
 
 > Scripts in `scripts/ad-bootstrap/`, run over Bastion. See
 > [Install a new Active Directory forest](https://learn.microsoft.com/windows-server/identity/ad-ds/deploy/install-a-new-windows-server-2012-active-directory-forest--level-200-).
@@ -252,7 +252,7 @@ reports `exists`, every user reports `ok`, and the blockers section is empty.
 ![Clean re-run](images/phase1/prep-sync-clean.png)
 
 The script also checks the three things that most commonly cause a user to fail
-synchronisation later, when the error surfaces hours after the cause:
+synchronization later, when the error surfaces hours after the cause:
 
 | Check | Why it blocks sync |
 |---|---|
@@ -281,5 +281,5 @@ synchronisation later, when the error surfaces hours after the cause:
 ## Next
 
 [Phase 2](02-entra-connect.md) installs Entra Connect Sync on CS01 and
-synchronises the five seeded users into Microsoft Entra ID. Sync is free with any
+synchronizes the five seeded users into Microsoft Entra ID. Sync is free with any
 Azure subscription.

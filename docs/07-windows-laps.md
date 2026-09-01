@@ -320,7 +320,7 @@ Get-LocalUser | Select-Object Name, Enabled, SID
 ![labadmin is RID 500](images/phase7/cl01-localuser-rid500.png)
 
 **`labadmin` ends in `-500`.** Azure renamed the built-in Administrator rather than
-creating a second account, so the default behaviour manages exactly the credential
+creating a second account, so the default behavior manages exactly the credential
 that mattered.
 
 **LAPS targets the built-in account by RID, not by name.** Renaming the built-in

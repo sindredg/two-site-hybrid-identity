@@ -67,7 +67,7 @@ is usable. Re-run with `-EnableUsers` once confirmed:
 Running it twice changes nothing. That is the closest the PowerShell layer has to
 `terraform plan`.
 
-## Preparing for synchronisation
+## Preparing for synchronization
 
 `.local` cannot be verified in Entra, so users created with a `@sindredg.local` UPN
 would sync under the tenant default. Fixing it on-premises first is what a real

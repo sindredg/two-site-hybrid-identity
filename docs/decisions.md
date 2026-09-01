@@ -114,14 +114,14 @@ its first sync, so the lab performs the remediation a migration would need.
 
 ---
 
-## 8. Where does the lab stop, given no paid licences?
+## 8. Where does the lab stop, given no paid licenses?
 
-**At Conditional Access, not before synchronisation.**
+**At Conditional Access, not before synchronization.**
 
 P1 and P2 are unobtainable for this tenant. The instinct was to drop Entra ID entirely; checking
-what actually needs a licence showed that was wider than necessary.
+what actually needs a license showed that was wider than necessary.
 
-| Capability | Licence | Available here |
+| Capability | License | Available here |
 |---|---|---|
 | Entra Connect Sync, PHS, OU filtering | None | Yes |
 | Hybrid Entra join | None | Yes |
@@ -135,7 +135,7 @@ what actually needs a licence showed that was wider than necessary.
 *Why not drop Entra entirely?* Briefly implemented. It discarded the two phases that make this
 more than a generic Windows Server lab, for no licensing reason.
 
-*Why not buy one P1?* Roughly $6 per user per month is affordable, but no paid licences were
+*Why not buy one P1?* Roughly $6 per user per month is affordable, but no paid licenses were
 available for this tenant at all.
 
 *Why not write the policies without applying them?* Terraform that is never planned or applied
@@ -216,7 +216,7 @@ genuine reason for AD Sites and Services.
 needs two LAPS backends side by side.
 
 *Why not resize to fit another region?* `Standard_B2ls_v2` is offered to this subscription in
-only three. A size difference between sites would be an artefact of the trial rather than a
+only three. A size difference between sites would be an artifact of the trial rather than a
 design decision.
 
 *Cost.* More moving parts, a small data transfer charge, and no auto-shutdown on the branch
@@ -397,7 +397,7 @@ real gap, accepted because closing it breaks the lab's only management path.
 Each tier GPO also names the other tier's group with Remove from this group.**
 
 *Why not Restricted Groups?* Its *Members of this group* list replaces membership wholesale,
-stripping `Domain Admins` from every machine in scope. Preferences offers the same behaviour
+stripping `Domain Admins` from every machine in scope. Preferences offers the same behavior
 behind the delete checkboxes, but off by default rather than on.
 
 *Why the explicit Remove?* Preferences do not revert. Dropping a member from the item stops it

@@ -4,7 +4,7 @@
 group and Terraform state, peered back to the domain controller in Sweden Central.
 The clients would not fit inside the Sweden Central vCPU quota and a free trial
 cannot raise it, so moving them added two sites, cross-region peering, and DNS and
-Kerberos travelling over it. Alternatives in [decisions.md](decisions.md).
+Kerberos traveling over it. Alternatives in [decisions.md](decisions.md).
 
 > Infrastructure in `terraform/azure-denmarkeast`, sharing a module with the HQ root.
 > Commands used in this phase: [terraform.md](../cmd-sheets/terraform.md) and

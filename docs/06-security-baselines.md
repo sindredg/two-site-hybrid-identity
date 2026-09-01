@@ -101,7 +101,7 @@ exist on one machine and not the other.
 ![User rights, continued](images/phase6/user-rights-cl01-continued.png)
 
 Every row reads `Baseline-MemberServer-2022` in the Winning GPO column, which is link
-order from section 2 doing its job. Three rows explain the behaviour observed on the
+order from section 2 doing its job. Three rows explain the behavior observed on the
 machine:
 
 | Policy | Setting |
