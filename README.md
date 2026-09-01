@@ -1,27 +1,41 @@
-# AD DS hosted on azure IaaS, Entra synced, Security Baselines, tierd admin access
+# Hybrid identity: AD DS on Azure IaaS, synced to Entra ID
 
 An Active Directory forest in Azure, synchronized to Microsoft Entra ID, serving a branch office in
 a second region over VNet peering, with hybrid-joined endpoints managed and hardened through Group
 Policy, Microsoft security baselines and Windows LAPS.
 
-**All nine phases are built and verified.** The forest is synchronized, the endpoints are
-hardened, every local administrator password rotates on its own, and administration is split
-into three tiers with enforced logon boundaries. See the
-[phase documentation](docs/), [decisions](docs/decisions.md),
-[risk register](docs/risk-and-limitations.md) and
-[troubleshooting log](docs/troubleshooting/README.md).
-
 The Azure footprint is Terraform, the directory is idempotent PowerShell, and the endpoint
 configuration is Group Policy built from cmdlets wherever one exists. The only hand-clicked parts
 are the tooling Microsoft ships as a wizard, and the parts of Group Policy that have no cmdlet.
 
-> **Entra ID license in this project is "Free-tier".** Connect Sync, hybrid Entra join, and Windows LAPS are all included. 
-> For further Entra ID hardening see previous project; [Access Control and Identity Governance](https://github.com/sindredg/Access-Control-and-Identity-Governance) which covers CA, PIM, access reviews, etc in Entra.
->[decisions.md](docs/decisions.md).
+> **Note:** This project runs on the Entra ID Free tier. Entra Connect Sync, hybrid Entra join and
+> Windows LAPS backup to Entra ID are all included at no cost. Conditional Access, Privileged
+> Identity Management and access reviews need P1 or P2 and are out of scope here; they are covered
+> in [Access Control and Identity Governance](https://github.com/sindredg/Access-Control-and-Identity-Governance).
+> [decisions.md](docs/decisions.md) records where the lab stops and why.
+
+## Status
+
+All nine phases are built and verified.
+
+- Complete: two-region Azure footprint in Terraform, reachable only over Azure Bastion, with no
+  internet-facing surface.
+- Complete: forest, DNS, OU structure and seed users, created by idempotent PowerShell.
+- Complete: Entra Connect Sync with password hash sync, scoped to a single OU.
+- Complete: peered branch office in a second region, with AD Sites and Services aware of both sites.
+- Complete: domain join and Microsoft Entra hybrid join on both branch clients.
+- Complete: Group Policy Central Store and linked GPOs, verified on the clients.
+- Complete: Microsoft Server 2022 security baseline, applied to one client and denied on the control.
+- Complete: Windows LAPS on both backends, Active Directory and Entra ID.
+- Complete: Tier 0, 1 and 2 administration with logon boundaries enforced in both directions.
+
+See the [phase documentation](docs/), [decisions](docs/decisions.md),
+[risk register](docs/risk-and-limitations.md) and
+[troubleshooting log](docs/troubleshooting/README.md).
 
 ---
 
-## 1. Architecture
+## Architecture
 
 Two sites in two regions joined by global VNet peering. Neither has an internet-facing surface.
 Access is over Azure Bastion, and the only inbound NSG rule in each site permits RDP from inside the
@@ -86,11 +100,11 @@ gave the lab two sites, cross-region DNS and Kerberos, and a real reason for AD 
 Sweden Central connects to the branch clients without a second deployment.
 
 **Auto-shutdown covers HQ only.** It is a `Microsoft.DevTestLab` resource and that provider is not
-published in Denmark East, so the branch clients are deallocated by hand.
+published in Denmark East, so you deallocate the branch clients manually.
 
 ---
 
-## 2. Tooling
+## Tooling
 
 | Layer | Tool | Why |
 |---|---|---|
@@ -111,7 +125,7 @@ Deliberately not used:
 
 ---
 
-## 3. Repository layout
+## Repository layout
 
 | Path | Contents |
 |---|---|
@@ -125,14 +139,14 @@ Deliberately not used:
 | `docs/decisions.md` | Choices made, alternatives rejected, what was given up |
 | `docs/risk-and-limitations.md` | What this does not do safely, and why |
 | `docs/images/phaseN/` | Evidence per phase |
-| `PLAN.md` | Phased roadmap and current status |
+| `docs/PLAN.md` | Phased roadmap and current status |
 
 Three ways to read the same build: the phase documents are the path that worked,
 [`cmd-sheets/`](cmd-sheets/README.md) is the copy-pasteable version grouped by tool, and
 [`docs/troubleshooting/`](docs/troubleshooting/README.md) is everything that went wrong with the
 error strings verbatim so they are searchable.
 
-| Doc | Phase | Status |
+| Document | Covers | Status |
 |---|---|---|
 | [00-infrastructure.md](docs/00-infrastructure.md) | Azure footprint: network, VMs, Bastion | **Complete** |
 | [01-ad-environment.md](docs/01-ad-environment.md) | Forest, DNS, domain join, directory | **Complete** |
@@ -146,7 +160,7 @@ error strings verbatim so they are searchable.
 
 ---
 
-## 4. What is deployed
+## What is deployed
 
 **Infrastructure and directory.** Two regions up, forest running, five seed users synchronized into
 Entra ID with the `NoSync` OU correctly absent. Both branch clients are Microsoft Entra hybrid
@@ -171,7 +185,7 @@ and CL02 storing its in Entra ID. Retrieving CL01's password as a Domain Admin r
 `DecryptionStatus: Unauthorized`, because it was encrypted to a Tier 1 group. Forest administration
 does not confer decryption.
 
-**Tiered administration (Phase 8), in progress.** Tier 0/1/2 OUs, groups and admin accounts exist
+**Tiered administration (Phase 8).** Tier 0, 1 and 2 OUs, groups and admin accounts exist
 outside sync scope, and deny-logon rights enforce the boundary in both directions. A cross-tier
 logon returns `1385: the user has not been granted the requested logon type at this computer`,
 which is the evidence the phase exists to produce. CS01 was moved out of `CN=Computers`, the
@@ -185,9 +199,13 @@ rights. Both are entries in [risk-and-limitations.md](docs/risk-and-limitations.
 
 ---
 
-## 5. Running it
+## Running the lab
 
-Requires Terraform and the Azure CLI. Run from WSL.
+### Before you begin
+
+You need Terraform and the Azure CLI. Run every command from WSL.
+
+### Deploy HQ
 
 ```bash
 cd terraform/azure
@@ -204,8 +222,10 @@ read -rsp 'VM admin password: ' TF_VAR_admin_password && export TF_VAR_admin_pas
 terraform init && terraform apply
 ```
 
-Then the branch, which has its own state and `terraform.tfvars`. Apply HQ first: the branch reads
-the HQ network through a data source and creates both peering objects.
+### Deploy the branch
+
+The branch has its own state and `terraform.tfvars`. Apply HQ first: the branch reads the HQ
+network through a data source and creates both peering objects.
 
 ```bash
 cd ../azure-denmarkeast/branch
@@ -213,20 +233,25 @@ cp terraform.tfvars.example terraform.tfvars
 terraform init && terraform apply
 ```
 
+### Connect and tear down
+
 Connect with `terraform output bastion_connect_urls` from either root. Tear down with
 `terraform destroy`, branch first.
 
-**Start DC01 first, every session.** Both networks point at 10.10.1.4 for DNS, so starting any other
-VM while DC01 is deallocated leaves it with no name resolution at all, including for the internet.
+### Operating notes
 
-**Deallocate the branch clients when you finish.** They have no auto-shutdown schedule, and stopping
+> **Caution:** Start DC01 first, every session. Both networks point at 10.10.1.4 for DNS, so
+> starting any other VM while DC01 is deallocated leaves it with no name resolution at all,
+> including for the internet.
+
+Deallocate the branch clients when you finish. They have no auto-shutdown schedule, and stopping
 from inside Windows still bills:
 
 ```bash
 az vm deallocate --ids $(az vm list -g rg-branch-office --query "[].id" -o tsv)
 ```
 
-**Bastion bills hourly.** Set `enable_bastion = false` and apply when you finish a session.
+Bastion bills hourly. Set `enable_bastion = false` and apply when you finish a session.
 
-**Both state files hold the admin password in plaintext**, so `terraform.tfstate` and
-`terraform.tfvars` are gitignored in every root and must stay that way.
+> **Caution:** Both state files hold the admin password in plaintext, so `terraform.tfstate` and
+> `terraform.tfvars` are gitignored in every root and must stay that way.
