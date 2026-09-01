@@ -384,11 +384,10 @@ not a one-shot.
 
 ---
 
-## Current milestone boundary
+## What Phase 8 changes
 
 [Phase 8](08-tiered-administration.md) continues from here: it splits the single Domain
-Admin account into a tiered model and addresses CS01's unmanaged local administrator.
-It is **complete**: no account reaches a machine outside its tier, CS01's local
-administrator is LAPS-managed, and `labadmin` is retired to break-glass. Until that
-work is finished those controls remain explicit residual risk rather than a completed
-claim, and everything in this document holds exactly as written.
+Admin account into a tiered model and addresses CS01's unmanaged local administrator. It
+is complete. No account reaches a machine outside its tier, CS01's local administrator is
+LAPS-managed, and `labadmin` is retired to break-glass. Everything in this document holds
+exactly as written; Phase 8 closes the residual risks it names rather than changing them.
