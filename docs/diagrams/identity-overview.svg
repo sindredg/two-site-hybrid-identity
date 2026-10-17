@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title description">
+  <title id="title">Hybrid identity across two Azure sites</title>
+  <desc id="description">HQ and branch Azure VNets connect through global VNet peering. Branch clients reach DC01 for AD DS, DNS, and Group Policy over that peering. CS01 reads the local directory and uses outbound HTTPS for Entra Connect synchronization. Both clients complete Entra hybrid join over outbound HTTPS. CL01 and CS01 back up LAPS passwords to AD DS; CL02 backs up to Entra. CL01 receives the Server 2022 baseline and CL02 is its comparison control. Administration and internet egress infrastructure are omitted.</desc>
+  <defs>
+    <linearGradient id="background" x2="1" y2="1"><stop stop-color="#0b1426"/><stop offset="1" stop-color="#102338"/></linearGradient>
+    <marker id="local-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#65dfbd"/></marker>
+    <marker id="cloud-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#8fbfff"/></marker>
+    <style>
+      text { font-family: Arial, Helvetica, sans-serif; fill: #eaf2ff; }
+      .heading { font-size: 27px; font-weight: 700; }
+      .label { font-size: 18px; font-weight: 700; }
+      .detail { font-size: 15px; fill: #b5c8df; }
+      .small { font-size: 14px; fill: #b5c8df; }
+      .panel { fill: #101e32; stroke: #30445f; stroke-width: 1.5; }
+      .node { fill: #193149; stroke: #466888; stroke-width: 1.5; }
+      .local { fill: none; stroke: #65dfbd; stroke-width: 2.5; marker-end: url(#local-arrow); }
+      .cloud { fill: none; stroke: #8fbfff; stroke-width: 2; stroke-dasharray: 6 5; marker-end: url(#cloud-arrow); }
+      .branch { fill: none; stroke: #8fbfff; stroke-width: 2; stroke-dasharray: 6 5; }
+    </style>
+  </defs>
+  <rect width="1200" height="760" rx="18" fill="url(#background)"/>
+  <text x="32" y="47" class="heading" >Hybrid identity across two sites</text>
+  <text x="32" y="77" class="detail" >AD DS · Entra Connect Sync · Group Policy · Windows LAPS</text>
+  <text x="48" y="144" class="detail" >AD DS owns the local directory and Group Policy.</text>
+  <text x="48" y="173" class="detail" >Entra holds synchronized identities and hybrid-joined devices.</text>
+  <rect x="24" y="260" width="330" height="390" rx="12" class="panel" />
+  <text x="48" y="290" class="label" >HQ network</text>
+  <text x="48" y="316" class="small" >Sweden Central · Azure VNet</text>
+  <rect x="610" y="260" width="330" height="390" rx="12" class="panel" />
+  <text x="634" y="290" class="label" >Branch network</text>
+  <text x="634" y="316" class="small" >Denmark East · Azure VNet</text>
+  <path d="M 330 390 H 375 V 460 H 400" class="local" marker-start="url(#local-arrow)"/>
+  <path d="M 570 460 H 596 V 390 H 634" class="local" marker-start="url(#local-arrow)"/>
+  <path d="M 596 460 V 580 H 634" class="local" marker-start="url(#local-arrow)"/>
+  <path d="M 180 536 V 434" class="local" marker-start="url(#local-arrow)"/>
+  <path d="M 48 580 H 12 V 228 H 900 V 204" class="cloud"/>
+  <path d="M 916 390 H 980" class="branch"/>
+  <path d="M 916 580 H 980 V 204" class="cloud"/>
+  <rect x="48" y="346" width="282" height="88" rx="12" class="node" />
+  <text x="64" y="374" class="label" >DC01 · AD DS + DNS</text>
+  <text x="64" y="397" class="detail" >Domain controller · Tier 0</text>
+  <text x="64" y="419" class="small" >Directory · GPOs · LAPS storage</text>
+  <rect x="48" y="536" width="282" height="88" rx="12" class="node" />
+  <text x="64" y="564" class="label" >CS01 · Connect Sync</text>
+  <text x="64" y="587" class="detail" >GPO tooling · Tier 1</text>
+  <text x="64" y="609" class="small" >LAPS backup to AD DS</text>
+  <rect x="634" y="346" width="282" height="88" rx="12" class="node" />
+  <text x="650" y="374" class="label" >CL01 · Baseline applied</text>
+  <text x="650" y="397" class="detail" >Tier 2 · domain + hybrid joined</text>
+  <text x="650" y="419" class="small" >LAPS backup to AD DS</text>
+  <rect x="634" y="536" width="282" height="88" rx="12" class="node" />
+  <text x="650" y="564" class="label" >CL02 · Baseline control</text>
+  <text x="650" y="587" class="detail" >Tier 2 · domain + hybrid joined</text>
+  <text x="650" y="609" class="small" >LAPS backup to Entra ID</text>
+  <rect x="850" y="116" width="326" height="88" rx="12" class="node" />
+  <text x="866" y="144" class="label" >Microsoft Entra ID</text>
+  <text x="866" y="167" class="detail" >Cloud directory · Entra ID Free</text>
+  <text x="866" y="189" class="small" >Identity sync · hybrid join · CL02 LAPS</text>
+  <rect x="400" y="420" width="170" height="80" rx="12" class="node" stroke="#65dfbd"/>
+  <text x="416" y="451" class="label" >Global VNet</text>
+  <text x="416" y="477" class="label" >peering</text>
+  <text x="485" y="350" class="detail" text-anchor="middle">DNS · AD DS</text>
+  <text x="485" y="376" class="small" text-anchor="middle">Group Policy · AD LAPS</text>
+  <text x="195" y="483" class="small" >AD reads +</text>
+  <text x="195" y="505" class="small" >policy + LAPS</text>
+  <text x="490" y="215" class="small" text-anchor="middle">Directory objects + password hash sync</text>
+  <text x="1000" y="342" class="label" >Hybrid join</text>
+  <text x="1000" y="367" class="detail" >Both clients</text>
+  <text x="1000" y="537" class="label" >LAPS backup</text>
+  <text x="1000" y="562" class="detail" >CL02 only</text>
+  <path d="M 32 684 H 76" class="local"/>
+  <text x="90" y="689" class="small" >Private AD traffic; cross-site flows use peering</text>
+  <path d="M 32 717 H 76" class="cloud"/>
+  <text x="90" y="722" class="small" >Outbound HTTPS to Entra via each subnet’s internet egress</text>
+  <text x="650" y="685" class="small" >All four VMs run Windows Server 2022.</text>
+  <text x="650" y="710" class="small" >Selected identity flows; administration and egress</text>
+  <text x="650" y="733" class="small" >infrastructure omitted.</text>
+</svg>
